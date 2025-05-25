@@ -1,0 +1,7 @@
+version: 2
+
+macros:
+  - name: generate_schema_name
+    description: |+
+      ENG - Override system macro. Now this macro adds prefix 'dbt_' before generated schema name.  
+      RU  - Переопределение системного макроса. Теперь этот макрос добавляет префикс 'dbt_' перед сгенерированным именем схемы.

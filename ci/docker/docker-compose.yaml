@@ -1,0 +1,201 @@
+name: dagster-dbt
+
+services:
+
+  # This service creates the necessary files for dbt (manifest.json, etc.), as well as runs the dbt documentation server.
+  # Эта служба создает необходимые файлы для работы dbt (manifest.json и пр.), а так же запускает сервер документации dbt.
+  dbt-docs-and-prepare-project:
+    container_name: dbt-docs-and-prepare-project
+    build:
+        context: .
+        dockerfile: Dockerfile_dbt_docs
+    image: dbt-docs-and-prepare-project-image
+    ports:
+        - 8001:8001
+#    networks:
+#      - dbt_network
+    environment:
+      DWH_USERNAME: ${DWH_USERNAME}
+      DWH_PASSWORD: ${DWH_PASSWORD}
+      DWH_HOST: ${DWH_HOST}
+      DWH_PORT: ${DWH_PORT}
+      DWH_DB: ${DWH_DB}
+    working_dir: /opt/dagster/app/dbt/projects
+    entrypoint: bash -c "dbt parse && dbt docs generate && dbt docs serve --host 0.0.0.0 --port 8001"
+    volumes:
+      - ./app/dbt/:/opt/dagster/app/dbt/
+
+  # This service runs the postgres database used by dagster to store launches, schedules, and event logs.
+  # Эта служба запускает базу данных postgres, используемую dagster для хранения запусков, расписаний, и журналов событий.
+  dagster-postgresql:
+    container_name: dagster-postgresql
+    image: postgres:17
+    ports: 
+      - 5432:5432
+    environment:
+      POSTGRES_USER: ${PG_USERNAME}
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
+      POSTGRES_DB: ${PG_DB}
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${PG_USERNAME} -d ${PG_DB}" ]
+      interval: 5s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      dbt-docs-and-prepare-project:
+        condition: service_started
+  
+  dagster-rabbitmq:
+    container_name: dagster-rabbitmq
+    image: rabbitmq:3.9.9-management
+    ports:
+      - 5672:5672
+      - 15672:15672
+    environment:
+      - DEFAULT_VHOST=${DEFAULT_VHOST}
+      - DEFAULT_USER=${DEFAULT_USER}
+      - DEFAULT_PASS=${DEFAULT_PASS}   
+    volumes: 
+      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+
+  dagster-keydb:
+    container_name: dagster-keydb
+    image: eqalpha/keydb:x86_64_v6.2.0
+    ports: 
+        - 6379:6379 
+
+  dagster-flower:
+    container_name: dagster-flower
+    image: mher/flower:0.9.7
+    environment:
+        - CELERY_BROKER_URL=${CELERY_BROKER_URL}
+        - FLOWER_PORT=5555      
+    ports:
+        - 5555:5555
+    depends_on:
+        - dagster-rabbitmq
+
+  # This service runs a code server that downloads custom code.
+  # Эта служба запускает сервер кода, который загружает пользовательский код.
+  dagster-user-code:
+    container_name: dagster-user-code
+    build:
+      context: .
+      dockerfile: ./Dockerfile_user_code_prod
+    image: dagster-user-code-image
+    environment:
+      PG_USERNAME: ${PG_USERNAME}
+      PG_PASSWORD: ${PG_PASSWORD}
+      PG_HOST: ${PG_HOST}
+      PG_DB: ${PG_DB}
+      PG_PORT: 5432
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL_PY}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
+    depends_on:
+      dbt-docs-and-prepare-project:
+        condition: service_started
+    volumes:
+      - ./app/:/opt/dagster/app/
+
+  # This service is running under a dagster web server.
+  # Эта служба работает под управлением dagster-веб-сервера.
+  dagster-webserver:
+    container_name: dagster-webserver
+    build:
+      context: .
+      dockerfile: ./Dockerfile_dagster
+    image: dagster-webserver-image
+    entrypoint:
+      - dagster-webserver
+      - -h
+      - "0.0.0.0"
+      - -p
+      - "3000"
+      - -w
+      - workspace.yaml
+    expose:
+      - "3000"
+    ports:
+      - "3000:3000"
+    environment:
+      PG_USERNAME: ${PG_USERNAME}
+      PG_PASSWORD: ${PG_PASSWORD}
+      PG_HOST: ${PG_HOST}
+      PG_DB: ${PG_DB}
+      PG_PORT: 5432
+    volumes:
+      - ./app/dagster_home/storage/:/opt/dagster/app/dagster_home/storage
+      - ./app/dagster_home/dagster.yaml:/opt/dagster/app/dagster_home/dagster.yaml
+      - ./app/dagster_home/workspace.yaml:/opt/dagster/app/dagster_home/workspace.yaml
+    depends_on:
+      dagster-postgresql:
+        condition: service_healthy
+      dagster-user-code:
+        condition: service_started
+
+  # This service starts the dagster-daemon process.
+  # Эта служба запускает процесс dagster-daemon.
+  dagster-daemon:
+    container_name: dagster-daemon
+    build:
+      context: .
+      dockerfile: ./Dockerfile_dagster
+    image: dagster-daemon-image
+    entrypoint:
+      - dagster-daemon
+      - run
+    environment:
+      PG_USERNAME: ${PG_USERNAME}
+      PG_PASSWORD: ${PG_PASSWORD}
+      PG_HOST: ${PG_HOST}
+      PG_DB: ${PG_DB}
+      PG_PORT: 5432
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL_PY}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND_}
+    volumes:
+      - ./app/dagster_home/dagster.yaml:/opt/dagster/app/dagster_home/dagster.yaml
+      - ./app/dagster_home/workspace.yaml:/opt/dagster/app/dagster_home/workspace.yaml
+    depends_on:
+      dagster-postgresql:
+        condition: service_healthy
+      dagster-user-code:
+        condition: service_started
+
+  dagster-celery-executor:
+    container_name: dagster-celery-executor
+    build:
+      context: .
+      dockerfile: ./Dockerfile_user_code_prod
+    image: dagster-celery-executor-image
+#    networks:
+#      - dbt_network
+    environment: 
+      PG_USERNAME: ${PG_USERNAME}
+      PG_PASSWORD: ${PG_PASSWORD}
+      PG_HOST: ${PG_HOST}     
+      PG_DB: ${PG_DB}
+      PG_PORT: 5432        
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL_PY}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
+      CELERY_WORKER_CONCURRENCY: 10
+    entrypoint:
+      - dagster-celery
+      - worker 
+      - start 
+      - -A 
+      - dagster_celery.app
+    depends_on:
+      dagster-postgresql:
+        condition: service_healthy
+      dagster-rabbitmq:
+        condition: service_started
+      dagster-keydb:
+        condition: service_started
+    volumes:
+      - ./app/:/opt/dagster/app/
+
+
+#networks:
+#  dbt_network:
+#    name: dbt_network
+#    driver: bridge

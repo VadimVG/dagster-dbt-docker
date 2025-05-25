@@ -1,0 +1,13 @@
+FROM python:3.11
+
+ENV DAGSTER_HOME=/opt/dagster/app/dagster_home/
+
+WORKDIR /tmp
+COPY requirements_user_code.txt .
+RUN pip3 install -r /tmp/requirements_user_code.txt
+
+
+WORKDIR /opt/dagster/app/
+EXPOSE 4000
+
+CMD ["dagster", "api", "grpc", "-h", "0.0.0.0", "-p", "4000", "-f", "dagster_easy/definitions.py"]

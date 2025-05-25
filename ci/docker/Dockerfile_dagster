@@ -1,0 +1,16 @@
+FROM python:3.11
+
+
+ENV DAGSTER_HOME=/opt/dagster/app/dagster_home/
+
+WORKDIR /tmp
+COPY requirements_dagster.txt .
+
+RUN pip3 install -r /tmp/requirements_dagster.txt 
+RUN mkdir -p $DAGSTER_HOME
+
+COPY app/dagster_home/dagster.yaml $DAGSTER_HOME
+COPY app/dagster_home/workspace.yaml $DAGSTER_HOME
+WORKDIR $DAGSTER_HOME
+
+

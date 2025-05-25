@@ -1,0 +1,9 @@
+.env
+__pycache__/
+dagster_celery/
+storage/
+target/
+logs/
+docker-compose.test.yaml
+.user.yml
+rabbitmq.conf
