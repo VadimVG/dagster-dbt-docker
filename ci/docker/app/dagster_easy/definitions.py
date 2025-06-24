@@ -7,6 +7,7 @@ from dagster_easy.resources.resources import(
 )
 
 from dagster_easy.test_examples.assets import example_1
+from dagster_easy.assets.verify_database_availability import db_connection
 
 from dagster_easy.test_examples.jobs.jobs import (
     example_1_job,
@@ -19,6 +20,8 @@ from dagster_easy.test_examples.schedules.schedules import (
 )
 
 from dagster_easy.test_examples.sensors.example_2_sensor import example_2_sensor
+
+from dagster_easy.jobs.jobs import verify_database_availability_job
 
 
 import warnings
@@ -65,6 +68,30 @@ repo_1 = dg.create_repository_using_definitions_args(
     ],
 
     jobs=[
+    ],
+
+    schedules=[
+    ],
+
+    sensors=[
+    ],
+
+    resources={
+        "dbt": dbt_resource,
+    },
+    
+    executor=celery_executor
+)
+
+healthchecks = dg.create_repository_using_definitions_args(
+    name="healthchecks",
+
+    assets=[
+        db_connection
+    ],
+
+    jobs=[
+        verify_database_availability_job
     ],
 
     schedules=[

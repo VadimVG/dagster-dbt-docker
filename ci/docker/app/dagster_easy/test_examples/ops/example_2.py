@@ -1,5 +1,6 @@
 """
-    Пример создания базовых операций.
+    RU: Пример создания базовых операций.
+    EN: An example of creating basic operations.
 """
 
 
