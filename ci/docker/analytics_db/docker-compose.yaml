@@ -1,0 +1,25 @@
+name: analytics-db
+
+services:
+  analytics-db-postgresql:
+    container_name: analytics-db-postgresql
+    image: postgres:17
+    networks:
+      - dagster_dbt_network
+    ports: 
+      - 5433:5432
+    environment:
+      POSTGRES_USER: ${DWH_USER}
+      POSTGRES_PASSWORD: ${DWH_PASSWORD}
+      POSTGRES_DB: ${DWH_DB}
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DWH_USER} -d ${DWH_DB}" ]
+      interval: 5s
+      timeout: 10s
+      retries: 3
+
+networks:
+  dagster_dbt_network:
+    driver: bridge
+    name: dagster_dbt_network  # Явное именование
+    external: true

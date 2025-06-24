@@ -3,7 +3,7 @@ prod: # this needs to match the profile: in your dbt_project.yml file
   outputs:
     prod:
       type: postgres
-      user: "{{ env_var('DWH_USERNAME') }}"
+      user: "{{ env_var('DWH_USER') }}"
       password: "{{ env_var('DWH_PASSWORD') }}"
       host: "{{ env_var('DWH_HOST') }}"
       port: "{{ env_var('DWH_PORT') | int }}"
