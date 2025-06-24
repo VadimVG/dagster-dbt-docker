@@ -58,7 +58,7 @@ services:
       - DEFAULT_USER=${DEFAULT_USER}
       - DEFAULT_PASS=${DEFAULT_PASS}   
     volumes: 
-      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+      - ./app/rabbitmq/:/etc/rabbitmq/
 
   dagster-keydb:
     container_name: dagster-keydb
