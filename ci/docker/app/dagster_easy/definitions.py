@@ -7,7 +7,7 @@ from dagster_easy.resources.resources import(
 )
 
 from dagster_easy.test_examples.assets import example_1
-from dagster_easy.assets.verify_database_availability import db_connection
+from dagster_easy.assets.verify_database_availability import db_connection, ready_schemas
 
 from dagster_easy.test_examples.jobs.jobs import (
     example_1_job,
@@ -87,7 +87,7 @@ healthchecks = dg.create_repository_using_definitions_args(
     name="healthchecks",
 
     assets=[
-        db_connection
+        db_connection, ready_schemas
     ],
 
     jobs=[

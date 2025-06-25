@@ -29,3 +29,8 @@ class PostgreDatabaseConnector:
         with self.engine.connect() as conn:
             result = conn.execute(text(query))
             return result.fetchall()
+        
+    def execute_command(self, command: str):
+        with self.engine.connect() as conn:
+            conn.execute(text(command))
+            conn.commit() 

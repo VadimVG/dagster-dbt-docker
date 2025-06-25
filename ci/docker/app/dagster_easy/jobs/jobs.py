@@ -14,7 +14,7 @@ verify_database_availability_job = dg.define_asset_job(
                         \n
                     EN: Job to test the functionality of the analytical database.\n
                 """,
-    selection="db_connection",
+    selection=["db_connection", "ready_schemas"],
 )
 
 
