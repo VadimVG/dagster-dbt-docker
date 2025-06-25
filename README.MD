@@ -3,7 +3,7 @@
 **Description**: This project implements an ETL process using Dagster (orchestration) and dbt (data transformation).
 
 ## How you can use this project
-![schema.png](readme_images\schema.png)
+![schema.png](readme_images\diagram.png)
 
 ## 🛠️ Technologies
 - **Dagster** – pipeline orchestration (https://dagster.io/)
