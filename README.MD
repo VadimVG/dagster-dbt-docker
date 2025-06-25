@@ -80,7 +80,7 @@ docker-compose up -d
 
 ### 1. Go to the http://localhost:3000/overview/activity/timeline
 You should see the following:
-![start_page.png](readme_images\start_page.png)
+![start_page.png](/readme_images/start_page.png)
 
 
 ### 2. Run test jobs to check the project's functionality
