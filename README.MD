@@ -2,7 +2,6 @@
 
 **Description**: This project implements an ETL process using Dagster (orchestration) and dbt (data transformation).
 
-## How you can use this project
 ![diagram.png](/readme_images/diagram.png)
 
 ## 🛠️ Technologies
