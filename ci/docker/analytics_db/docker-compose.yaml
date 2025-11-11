@@ -7,7 +7,7 @@ services:
     networks:
       - dagster_dbt_network
     ports: 
-      - 5433:5432
+      - ${DWH_PORT}:5432
     environment:
       POSTGRES_USER: ${DWH_USER}
       POSTGRES_PASSWORD: ${DWH_PASSWORD}
