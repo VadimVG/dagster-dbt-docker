@@ -97,5 +97,19 @@ def some_dbt_models(context: dg.AssetExecutionContext, dbt: DbtCliResource):
     return custom_dbt_model_executor_1(context=context, dbt_cli=dbt_cli)
 
 
-
+asset_example_job = dg.define_asset_job(
+    name="asset_example_job",
+    description = """
+                    RU: Пример создания job из ассетов.\n
+                        В данном случае импортируется весь модуль с ассетами через метод load_assets_from_modules.\n
+                        Можно выгрузить ассеты по аналогии с операциями (то есть каждую функцию по отдельности),\n
+                        но рекомендуется использовать именно load_assets_from_modules.\n\n
+                        \n
+                    EN: An example of creating a job from assets.\n
+                        In this case, the entire module with assets is imported using the load_assets_from_modules method.\n
+                        You can unload assets in a similar way to operations (i.e., each function individually),\n
+                        but it is recommended to use load_assets_from_modules.\n
+                """,
+    selection=[api_data, modify_api_data, api_data_raw_table, api_data_copy, some_dbt_models],
+)
 

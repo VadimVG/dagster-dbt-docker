@@ -34,12 +34,22 @@ def db_connection(context: dg.AssetExecutionContext) -> None:
 )
 def ready_schemas(context: dg.AssetExecutionContext) -> None:
     with PostgreDatabaseConnector() as db:
-
         shemas = ["test", "raw_data"]
         for schema in shemas:
             db.execute_command(
                 f"create schema if not exists {schema}"
             )
+
+
+verify_database_availability_job = dg.define_asset_job(
+    name="verify_database_availability_job",
+    description = """
+                    RU: Job для проверки рабостоспособности аналитической базы данных.\n
+                        \n
+                    EN: Job to test the functionality of the analytical database.\n
+                """,
+    selection=[db_connection, ready_schemas],
+)
 
 
             

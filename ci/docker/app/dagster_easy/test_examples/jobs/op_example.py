@@ -55,6 +55,17 @@ def refresh_dbt_models(context: dg.OpExecutionContext, dbt: DbtCliResource, star
     return custom_dbt_model_executor_1(context=context, dbt_cli=dbt_cli)
 
     
-
-
-
+@dg.job(
+    description = """
+                    RU: Пример создания job из базовых операций.\n
+                        Все зависимости операций указываются при создании джоба.\n\n
+                        \n
+                    EN: An example of creating a job from basic operations.\n
+                        All operation dependencies are specified when creating the job.
+                """
+)
+def op_example_job():
+    res = get_important_data()
+    df = create_df(json = res)
+    load_df_to_db(df=df)
+    refresh_dbt_models(start_after=df)
