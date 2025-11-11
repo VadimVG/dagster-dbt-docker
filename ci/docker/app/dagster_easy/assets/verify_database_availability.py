@@ -40,3 +40,6 @@ def ready_schemas(context: dg.AssetExecutionContext) -> None:
             db.execute_command(
                 f"create schema if not exists {schema}"
             )
+
+
+            
