@@ -17,9 +17,7 @@ from dagster_easy.project import (
     dbt_project
 )
 
-from dagster_easy.utils.helpers.run_dbt_models import (
-    custom_dbt_model_executor_1,
-)
+from dagster_easy.utils.dbt.executors import execute_dbt_and_cleanup
 
 
 
@@ -93,8 +91,8 @@ def api_data_copy(context: dg.AssetExecutionContext) -> None:
     group_name="group_1",
 )
 def some_dbt_models(context: dg.AssetExecutionContext, dbt: DbtCliResource):
-    dbt_cli = dbt.cli(["run"], manifest=dbt_project.manifest_path)
-    return custom_dbt_model_executor_1(context=context, dbt_cli=dbt_cli)
+    command = ["run", "-f", "-s", "test_model"]
+    return execute_dbt_and_cleanup(context=context, dbt=dbt, command=command)
 
 
 asset_example_job = dg.define_asset_job(

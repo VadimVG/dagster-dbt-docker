@@ -13,10 +13,7 @@ from dagster_dbt import (
 
 import time
 
-from dagster_easy.utils.helpers.run_dbt_models import (
-    custom_dbt_model_executor_1,
-)
-
+from dagster_easy.utils.dbt.executors import execute_dbt_and_cleanup
 
 
 
@@ -46,13 +43,10 @@ def load_df_to_db(context: dg.OpExecutionContext, df: pd.DataFrame) -> None:
     time.sleep(1)
 
 
-@dg.op(
-    out=dg.Out(dg.Nothing),
-)
+@dg.op
 def refresh_dbt_models(context: dg.OpExecutionContext, dbt: DbtCliResource, start_after = ""):
     command = ["run", "-f", "-s", "tag:stages"]
-    dbt_cli = dbt.cli(command)
-    return custom_dbt_model_executor_1(context=context, dbt_cli=dbt_cli)
+    return execute_dbt_and_cleanup(context=context, dbt=dbt, command=command)
 
     
 @dg.job(
