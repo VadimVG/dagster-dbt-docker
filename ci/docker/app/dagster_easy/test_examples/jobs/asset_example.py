@@ -18,13 +18,14 @@ from dagster_easy.project import (
 )
 
 from dagster_easy.utils.dbt.executors import execute_dbt_and_cleanup
+from dagster_easy.utils.helpers import DagsterAssetKind
 
 
 
 
 @dg.asset(
     kinds={
-        "Python",
+        DagsterAssetKind.PYTHON,
     },
     group_name="group_1",
 )
@@ -42,7 +43,7 @@ def api_data(context: dg.AssetExecutionContext) -> pd.DataFrame:
 
 @dg.asset(
     kinds={
-        "Python"
+        DagsterAssetKind.PYTHON,
     },
     group_name="group_1",
 )
@@ -58,7 +59,7 @@ def modify_api_data(context: dg.AssetExecutionContext, api_data: pd.DataFrame) -
 
 @dg.asset(
     kinds={
-        "Python",
+        DagsterAssetKind.PYTHON,
     },
     deps=[modify_api_data],
     group_name="group_1",
@@ -71,7 +72,7 @@ def api_data_raw_table(context: dg.AssetExecutionContext) -> None:
 
 @dg.asset(
     kinds={
-        "Python",
+        DagsterAssetKind.PYTHON,
     },
     required_resource_keys={"dbt"},
     deps=[modify_api_data],
@@ -85,7 +86,7 @@ def api_data_copy(context: dg.AssetExecutionContext) -> None:
 
 @dg.asset(
     kinds={
-        "dbt",
+        DagsterAssetKind.DBT,
     },
     deps=[api_data_raw_table, api_data_copy],
     group_name="group_1",
