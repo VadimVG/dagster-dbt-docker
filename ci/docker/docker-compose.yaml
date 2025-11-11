@@ -2,28 +2,6 @@ name: dagster-dbt
 
 services:
 
-  # This service creates the necessary files for dbt (manifest.json, etc.), as well as runs the dbt documentation server.
-  dbt-docs-and-prepare-project:
-    container_name: dbt-docs-and-prepare-project
-    build:
-        context: .
-        dockerfile: Dockerfile_dbt_docs
-    image: dbt-docs-and-prepare-project-image
-    ports:
-        - 8001:8001
-    networks:
-      - dagster_dbt_network
-    environment:
-      DWH_USER: ${DWH_USER}
-      DWH_PASSWORD: ${DWH_PASSWORD}
-      DWH_HOST: ${DWH_HOST}
-      DWH_PORT: ${DWH_PORT}
-      DWH_DB: ${DWH_DB}
-    working_dir: /opt/dagster/app/dbt/projects
-    entrypoint: bash -c "dbt parse && dbt docs generate && dbt docs serve --host 0.0.0.0 --port 8001"
-    volumes:
-      - ./app/dbt/:/opt/dagster/app/dbt/
-
   # This service runs the postgres database used by dagster to store launches, schedules, and event logs.
   dagster-postgresql:
     container_name: dagster-postgresql
@@ -31,7 +9,7 @@ services:
     networks:
       - dagster_dbt_network
     ports: 
-      - 5432:5432
+      - ${PG_PORT}:${PG_PORT}
     environment:
       POSTGRES_USER: ${PG_USERNAME}
       POSTGRES_PASSWORD: ${PG_PASSWORD}
@@ -57,8 +35,6 @@ services:
       - DEFAULT_VHOST=${DEFAULT_VHOST}
       - DEFAULT_USER=${DEFAULT_USER}
       - DEFAULT_PASS=${DEFAULT_PASS}   
-    volumes: 
-      - ./app/rabbitmq/:/etc/rabbitmq/
 
   dagster-keydb:
     container_name: dagster-keydb
@@ -81,6 +57,28 @@ services:
     depends_on:
         - dagster-rabbitmq
 
+  # This service creates the necessary files for dbt (manifest.json, etc.), as well as runs the dbt documentation server.
+  dbt-docs-and-prepare-project:
+    container_name: dbt-docs-and-prepare-project
+    build:
+        context: .
+        dockerfile: Dockerfile_dbt_docs
+    image: dbt-docs-and-prepare-project-image
+    ports:
+        - 8001:8001
+    networks:
+      - dagster_dbt_network
+    environment:
+      DWH_USER: ${DWH_USER}
+      DWH_PASSWORD: ${DWH_PASSWORD}
+      DWH_HOST: ${DWH_HOST}
+      DWH_PORT: ${DWH_PORT}
+      DWH_DB: ${DWH_DB}
+    working_dir: /opt/dagster/app/dbt/projects
+    entrypoint: bash -c "dbt parse && dbt docs generate && dbt docs serve --host 0.0.0.0 --port 8001"
+    volumes:
+      - ./app/dbt/:/opt/dagster/app/dbt/
+
   # This service runs a code server that downloads custom code.
   dagster-user-code:
     container_name: dagster-user-code
@@ -95,7 +93,7 @@ services:
       PG_PASSWORD: ${PG_PASSWORD}
       PG_HOST: ${PG_HOST}
       PG_DB: ${PG_DB}
-      PG_PORT: 5432
+      PG_PORT: ${PG_PORT}
       CELERY_BROKER_URL: ${CELERY_BROKER_URL_PY}
       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
     depends_on:
@@ -130,7 +128,7 @@ services:
       PG_PASSWORD: ${PG_PASSWORD}
       PG_HOST: ${PG_HOST}
       PG_DB: ${PG_DB}
-      PG_PORT: 5432
+      PG_PORT: ${PG_PORT}
     volumes:
       - ./app/dagster_home/storage/:/opt/dagster/app/dagster_home/storage
       - ./app/dagster_home/dagster.yaml:/opt/dagster/app/dagster_home/dagster.yaml
@@ -158,9 +156,9 @@ services:
       PG_PASSWORD: ${PG_PASSWORD}
       PG_HOST: ${PG_HOST}
       PG_DB: ${PG_DB}
-      PG_PORT: 5432
+      PG_PORT: ${PG_PORT}
       CELERY_BROKER_URL: ${CELERY_BROKER_URL_PY}
-      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND_}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
     volumes:
       - ./app/dagster_home/dagster.yaml:/opt/dagster/app/dagster_home/dagster.yaml
       - ./app/dagster_home/workspace.yaml:/opt/dagster/app/dagster_home/workspace.yaml
@@ -183,7 +181,7 @@ services:
       PG_PASSWORD: ${PG_PASSWORD}
       PG_HOST: ${PG_HOST}     
       PG_DB: ${PG_DB}
-      PG_PORT: 5432        
+      PG_PORT: ${PG_PORT}       
       CELERY_BROKER_URL: ${CELERY_BROKER_URL_PY}
       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
       CELERY_WORKER_CONCURRENCY: 10
