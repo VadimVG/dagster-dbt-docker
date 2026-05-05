@@ -25,28 +25,38 @@ services:
   
   dagster-rabbitmq:
     container_name: dagster-rabbitmq
-    image: rabbitmq:3.9.9-management
+    image: rabbitmq:4.1.8-management
     networks:
       - dagster_dbt_network
     ports:
       - 5672:5672
       - 15672:15672
     environment:
-      - DEFAULT_VHOST=${DEFAULT_VHOST}
-      - DEFAULT_USER=${DEFAULT_USER}
-      - DEFAULT_PASS=${DEFAULT_PASS}   
+      RABBITMQ_DEFAULT_VHOST: ${DEFAULT_VHOST}
+      RABBITMQ_DEFAULT_USER: ${DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${DEFAULT_PASS}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
-  dagster-keydb:
-    container_name: dagster-keydb
-    image: eqalpha/keydb:x86_64_v6.2.0
+  dagster-redis:
+    container_name: dagster-redis
+    image: redis:8.0.6-alpine
     networks:
       - dagster_dbt_network
     ports: 
-        - 6379:6379 
+        - 6379:6379
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   dagster-flower:
     container_name: dagster-flower
-    image: mher/flower:0.9.7
+    image: mher/flower:2.0.1
     networks:
       - dagster_dbt_network
     environment:
@@ -55,7 +65,8 @@ services:
     ports:
         - 5555:5555
     depends_on:
-        - dagster-rabbitmq
+      dagster-rabbitmq:
+        condition: service_healthy
 
   # This service creates the necessary files for dbt (manifest.json, etc.), as well as runs the dbt documentation server.
   dbt-docs-and-prepare-project:
@@ -63,7 +74,7 @@ services:
     build:
         context: .
         dockerfile: Dockerfile_dbt_docs
-    image: dbt-docs-and-prepare-project-image
+    image: dbt-docs-image
     ports:
         - 8001:8001
     networks:
@@ -84,17 +95,18 @@ services:
     container_name: dagster-user-code
     build:
       context: .
-      dockerfile: ./Dockerfile_user_code_prod
-    image: dagster-user-code-image
+      dockerfile: Dockerfile
+    image: dagster-image
     networks:
       - dagster_dbt_network
+    entrypoint: dagster api grpc -h 0.0.0.0 -p 4000 -f dagster_easy/definitions.py
     environment:
       PG_USERNAME: ${PG_USERNAME}
       PG_PASSWORD: ${PG_PASSWORD}
       PG_HOST: ${PG_HOST}
       PG_DB: ${PG_DB}
       PG_PORT: ${PG_PORT}
-      CELERY_BROKER_URL: ${CELERY_BROKER_URL_PY}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL}
       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
     depends_on:
       dbt-docs-and-prepare-project:
@@ -107,10 +119,11 @@ services:
     container_name: dagster-webserver
     build:
       context: .
-      dockerfile: ./Dockerfile_dagster
-    image: dagster-webserver-image
+      dockerfile: Dockerfile
+    image: dagster-image
     networks:
       - dagster_dbt_network
+    working_dir: /opt/dagster/app/dagster_home
     entrypoint:
       - dagster-webserver
       - -h
@@ -144,10 +157,11 @@ services:
     container_name: dagster-daemon
     build:
       context: .
-      dockerfile: ./Dockerfile_dagster
-    image: dagster-daemon-image
+      dockerfile: Dockerfile
+    image: dagster-image
     networks:
       - dagster_dbt_network
+    working_dir: /opt/dagster/app/dagster_home
     entrypoint:
       - dagster-daemon
       - run
@@ -157,7 +171,7 @@ services:
       PG_HOST: ${PG_HOST}
       PG_DB: ${PG_DB}
       PG_PORT: ${PG_PORT}
-      CELERY_BROKER_URL: ${CELERY_BROKER_URL_PY}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL}
       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
     volumes:
       - ./app/dagster_home/dagster.yaml:/opt/dagster/app/dagster_home/dagster.yaml
@@ -172,17 +186,18 @@ services:
     container_name: dagster-celery-executor
     build:
       context: .
-      dockerfile: ./Dockerfile_user_code_prod
-    image: dagster-celery-executor-image
+      dockerfile: Dockerfile
+    image: dagster-image
     networks:
       - dagster_dbt_network
-    environment: 
+    environment:
+      PYTHONPATH: /opt/dagster/app
       PG_USERNAME: ${PG_USERNAME}
       PG_PASSWORD: ${PG_PASSWORD}
       PG_HOST: ${PG_HOST}     
       PG_DB: ${PG_DB}
       PG_PORT: ${PG_PORT}       
-      CELERY_BROKER_URL: ${CELERY_BROKER_URL_PY}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL}
       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
       CELERY_WORKER_CONCURRENCY: 10
       DWH_USER: ${DWH_USER}
@@ -190,19 +205,14 @@ services:
       DWH_HOST: ${DWH_HOST}
       DWH_PORT: ${DWH_PORT}
       DWH_DB: ${DWH_DB}
-    entrypoint:
-      - dagster-celery
-      - worker 
-      - start 
-      - -A 
-      - dagster_celery.app
+    entrypoint: dagster-celery worker start -A celery_app.app
     depends_on:
       dagster-postgresql:
         condition: service_healthy
       dagster-rabbitmq:
-        condition: service_started
-      dagster-keydb:
-        condition: service_started
+        condition: service_healthy
+      dagster-redis:
+        condition: service_healthy
     volumes:
       - ./app/:/opt/dagster/app/
 
