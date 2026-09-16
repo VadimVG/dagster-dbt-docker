@@ -1,4 +1,4 @@
- 🧩➡️🏭➡️🚛 ETL Pipeline with Dagster & dbt
+# 🧩➡️🏭➡️🚛 ETL Pipeline with Dagster & dbt
  
 ## 📖 Description
  
