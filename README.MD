@@ -1,4 +1,4 @@
-# 🧩➡️🏭➡️🚛 ETL Pipeline with Dagster & dbt
+# Modern Data Platform on Dagster & dbt
  
 ## 📖 Description
  
