@@ -1,9 +1,3 @@
-"""
-    RU: Пример создания базовых операций.
-    EN: An example of creating basic operations.
-"""
-
-
 import dagster as dg
 import pandas as pd
 
@@ -51,12 +45,9 @@ def refresh_dbt_models(context: dg.OpExecutionContext, dbt: DbtCliResource, star
     
 @dg.job(
     description = """
-                    RU: Пример создания job из базовых операций.\n
-                        Все зависимости операций указываются при создании джоба.\n\n
-                        \n
-                    EN: An example of creating a job from basic operations.\n
-                        All operation dependencies are specified when creating the job.
-                """
+        An example of creating a job from basic operations.\n
+        All operation dependencies are specified when creating the job.
+    """
 )
 def op_example_job():
     res = get_important_data()

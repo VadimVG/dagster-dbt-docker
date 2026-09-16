@@ -10,11 +10,7 @@ def get_current_moscow_datetime() -> datetime:
 
 
 class DagsterAssetKind(StrEnum):
-    """
-        RU: Константы для обозначений kinds в ассетах\n
-            \n
-        EN: Constants for kinds in assets\n
-    """
+    "Constants for kinds in assets"
     PYTHON = "python"
     DBT = "dbt"
     PANDAS = "pandas"
@@ -23,11 +19,7 @@ class DagsterAssetKind(StrEnum):
 
 
 class DagsterAssetRefreshConfig(dg.Config):
-    """
-        RU: Конфигурация типов обновления для ассетов\n
-            \n
-        EN: Configuration of update types for assets\n
-    """
+    "Configuration of update types for assets"
     
     class RefreshType(StrEnum):
         INC = "inc"

@@ -1,9 +1,3 @@
-"""
-    RU: Пример создания базовых ассетов.
-    EN: An example of creating basic assets.
-"""
-
-
 import dagster as dg
 import pandas as pd
 
@@ -12,10 +6,6 @@ from dagster_dbt import (
 )
 
 import time
-
-from dagster_easy.project import (
-    dbt_project
-)
 
 from dagster_easy.utils.dbt.executors import execute_dbt_and_cleanup
 from dagster_easy.utils.helpers import DagsterAssetKind
@@ -98,17 +88,12 @@ def some_dbt_models(context: dg.AssetExecutionContext, dbt: DbtCliResource):
 
 asset_example_job = dg.define_asset_job(
     name="asset_example_job",
-    description = """
-                    RU: Пример создания job из ассетов.\n
-                        В данном случае импортируется весь модуль с ассетами через метод load_assets_from_modules.\n
-                        Можно выгрузить ассеты по аналогии с операциями (то есть каждую функцию по отдельности),\n
-                        но рекомендуется использовать именно load_assets_from_modules.\n\n
-                        \n
-                    EN: An example of creating a job from assets.\n
-                        In this case, the entire module with assets is imported using the load_assets_from_modules method.\n
-                        You can unload assets in a similar way to operations (i.e., each function individually),\n
-                        but it is recommended to use load_assets_from_modules.\n
-                """,
+    description = """ 
+        An example of creating a job from assets.\n
+        In this case, the entire module with assets is imported using the load_assets_from_modules method.\n
+        You can unload assets in a similar way to operations (i.e., each function individually),\n
+        but it is recommended to use load_assets_from_modules.\n
+    """,
     selection=[api_data, modify_api_data, api_data_raw_table, api_data_copy, some_dbt_models],
 )
 

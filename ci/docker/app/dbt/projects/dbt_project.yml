@@ -45,11 +45,3 @@ models:
       test:
         +schema: test
         +tags: test
-
-      stages:
-        +schema: stages
-        +tags: stages
-
-      marts:
-        +schema: marts
-        +tags: marts

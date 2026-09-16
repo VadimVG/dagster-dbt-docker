@@ -43,7 +43,6 @@ class PGConnection:
         )
 
     def execute_query(self, query: str) -> Optional[Tuple]:
-        """Контекстный менеджер для connection"""
         if not self.engine:
             self.create_engine()
         
