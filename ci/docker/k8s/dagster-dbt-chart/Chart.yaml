@@ -1,0 +1,6 @@
+apiVersion: v2
+name: dagster-dbt
+description: Modern data platform on Dagster and dbt running on Kubernetes
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

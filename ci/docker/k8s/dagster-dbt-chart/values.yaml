@@ -1,0 +1,96 @@
+namespace: dagster-dbt
+
+externalSecrets:
+  refreshInterval: 1h
+  secrets:
+    - name: postgres-credentials
+      key: dagster-dbt/postgres
+    - name: rabbitmq-credentials
+      key: dagster-dbt/rabbitmq
+    - name: celery-credentials
+      key: dagster-dbt/celery
+    - name: dwh-credentials
+      key: dagster-dbt/dwh
+
+postgres:
+  image: postgres:17
+  replicas: 1
+  storage: 1Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+redis:
+  image: redis:8.0.6-alpine
+  replicas: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+rabbitmq:
+  image: rabbitmq:4.1.8-management
+  replicas: 1
+  storage: 1Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+
+dagster:
+  image: dagster-user-code:v1.0.0
+  hostPath:
+    enabled: false
+    appPath: ""
+  dwh:
+    externalName: postgre-postgres-1
+    host: dwh-postgres
+  userCode:
+    resources:
+      requests: {cpu: 100m, memory: 256Mi}
+      limits: {cpu: 500m, memory: 512Mi}
+  webserver:
+    resources:
+      requests: {cpu: 100m, memory: 256Mi}
+      limits: {cpu: 500m, memory: 768Mi}
+  daemon:
+    resources:
+      requests: {cpu: 100m, memory: 256Mi}
+      limits: {cpu: 500m, memory: 768Mi}
+  celeryExecutor:
+    replicas: 2
+    concurrency: 10
+    terminationGracePeriodSeconds: 120
+    resources:
+      requests: {cpu: 500m, memory: 1Gi}
+      limits: {cpu: "2", memory: 2Gi}
+
+dbt:
+  image: dbt-docs-image:v1.0.0
+  profilesDir: /opt/dagster/app/dbt/projects
+  targetStorage: 500Mi
+  docs:
+    resources:
+      requests: {cpu: 50m, memory: 128Mi}
+      limits: {cpu: 200m, memory: 256Mi}
+
+flower:
+  image: mher/flower:2.0.1
+  resources:
+    requests: {cpu: 50m, memory: 64Mi}
+    limits: {cpu: 200m, memory: 128Mi}
+
+vault:
+  server: http://vault:8200
+  kvPath: secret

@@ -1,0 +1,18 @@
+externalSecrets:
+  refreshInterval: 1m
+
+dagster:
+  image: dagster-user-code:latest
+  hostPath:
+    enabled: true
+    appPath: /mnt/projects/dagster-dbt-docker/ci/docker/app
+  celeryExecutor:
+    replicas: 1
+    concurrency: 2
+    terminationGracePeriodSeconds: 10
+    resources:
+      requests: {cpu: 200m, memory: 512Mi}
+      limits: {cpu: "1", memory: 1Gi}
+
+dbt:
+  image: dbt-docs-image:latest
