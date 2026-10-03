@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dbt-docs
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dbt-docs
+  template:
+    metadata:
+      labels:
+        app: dbt-docs
+    spec:
+      containers:
+        - name: dbt-docs
+          image: {{ .Values.dbt.image }}
+          imagePullPolicy: IfNotPresent
+          workingDir: {{ .Values.dbt.profilesDir }}
+          command: ["dbt", "docs", "serve", "--host", "0.0.0.0", "--port", "8001"]
+          ports:
+            - name: http
+              containerPort: 8001
+          env:
+            - name: DBT_PROFILES_DIR
+              value: {{ .Values.dbt.profilesDir }}
+          envFrom:
+            - secretRef:
+                name: dwh-credentials
+          volumeMounts:
+            {{- if .Values.dagster.hostPath.enabled }}
+            - name: app-code
+              mountPath: /opt/dagster/app
+            {{- end }}
+            - name: dbt-target
+              mountPath: {{ .Values.dbt.profilesDir }}/target
+          readinessProbe:
+            tcpSocket:
+              port: 8001
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.dbt.docs.resources | nindent 12 }}
+      volumes:
+        {{- if .Values.dagster.hostPath.enabled }}
+        - name: app-code
+          hostPath:
+            path: {{ .Values.dagster.hostPath.appPath }}
+            type: Directory
+        {{- end }}
+        - name: dbt-target
+          persistentVolumeClaim:
+            claimName: dbt-target

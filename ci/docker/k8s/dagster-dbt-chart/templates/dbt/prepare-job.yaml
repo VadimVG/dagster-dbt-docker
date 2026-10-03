@@ -1,0 +1,42 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dbt-prepare
+  namespace: {{ .Values.namespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: dbt-prepare
+          image: {{ .Values.dbt.image }}
+          imagePullPolicy: IfNotPresent
+          workingDir: {{ .Values.dbt.profilesDir }}
+          command: ["bash", "-c", "dbt parse && dbt docs generate"]
+          env:
+            - name: DBT_PROFILES_DIR
+              value: {{ .Values.dbt.profilesDir }}
+          envFrom:
+            - secretRef:
+                name: dwh-credentials
+          volumeMounts:
+            {{- if .Values.dagster.hostPath.enabled }}
+            - name: app-code
+              mountPath: /opt/dagster/app
+            {{- end }}
+            - name: dbt-target
+              mountPath: {{ .Values.dbt.profilesDir }}/target
+      volumes:
+        {{- if .Values.dagster.hostPath.enabled }}
+        - name: app-code
+          hostPath:
+            path: {{ .Values.dagster.hostPath.appPath }}
+            type: Directory
+        {{- end }}
+        - name: dbt-target
+          persistentVolumeClaim:
+            claimName: dbt-target
