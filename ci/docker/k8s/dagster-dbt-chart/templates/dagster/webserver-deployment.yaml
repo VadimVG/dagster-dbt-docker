@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dagster-webserver
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dagster-webserver
+  template:
+    metadata:
+      labels:
+        app: dagster-webserver
+    spec:
+      containers:
+        - name: dagster-webserver
+          image: {{ .Values.dagster.image }}
+          imagePullPolicy: IfNotPresent
+          workingDir: /opt/dagster/app/dagster_home
+          command: ["dagster-webserver", "-h", "0.0.0.0", "-p", "3000", "-w", "workspace.yaml"]
+          ports:
+            - name: http
+              containerPort: 3000
+          env:
+            - name: DAGSTER_HOME
+              value: /opt/dagster/app/dagster_home
+          envFrom:
+            - secretRef:
+                name: postgres-credentials
+          volumeMounts:
+            - name: dagster-config
+              mountPath: /opt/dagster/app/dagster_home/dagster.yaml
+              subPath: dagster.yaml
+            - name: dagster-config
+              mountPath: /opt/dagster/app/dagster_home/workspace.yaml
+              subPath: workspace.yaml
+            - name: storage
+              mountPath: /opt/dagster/app/dagster_home/storage
+          readinessProbe:
+            httpGet:
+              path: /server_info
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          resources:
+            {{- toYaml .Values.dagster.webserver.resources | nindent 12 }}
+      volumes:
+        - name: dagster-config
+          configMap:
+            name: dagster-config
+        - name: storage
+          emptyDir: {}

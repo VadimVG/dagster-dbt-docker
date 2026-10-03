@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dagster-daemon
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: dagster-daemon
+  template:
+    metadata:
+      labels:
+        app: dagster-daemon
+    spec:
+      containers:
+        - name: dagster-daemon
+          image: {{ .Values.dagster.image }}
+          imagePullPolicy: IfNotPresent
+          workingDir: /opt/dagster/app/dagster_home
+          command: ["dagster-daemon", "run"]
+          env:
+            - name: DAGSTER_HOME
+              value: /opt/dagster/app/dagster_home
+          envFrom:
+            - secretRef:
+                name: postgres-credentials
+            - secretRef:
+                name: celery-credentials
+          volumeMounts:
+            - name: dagster-config
+              mountPath: /opt/dagster/app/dagster_home/dagster.yaml
+              subPath: dagster.yaml
+            - name: dagster-config
+              mountPath: /opt/dagster/app/dagster_home/workspace.yaml
+              subPath: workspace.yaml
+          livenessProbe:
+            exec:
+              command: ["dagster-daemon", "liveness-check"]
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 15
+            failureThreshold: 5
+          resources:
+            {{- toYaml .Values.dagster.daemon.resources | nindent 12 }}
+      volumes:
+        - name: dagster-config
+          configMap:
+            name: dagster-config

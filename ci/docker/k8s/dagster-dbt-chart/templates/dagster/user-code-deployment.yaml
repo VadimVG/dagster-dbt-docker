@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dagster-user-code
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dagster-user-code
+  template:
+    metadata:
+      labels:
+        app: dagster-user-code
+    spec:
+      containers:
+        - name: dagster-user-code
+          image: {{ .Values.dagster.image }}
+          imagePullPolicy: IfNotPresent
+          command: ["dagster", "api", "grpc", "-h", "0.0.0.0", "-p", "4000", "-f", "dagster_easy/definitions.py"]
+          ports:
+            - name: grpc
+              containerPort: 4000
+          envFrom:
+            - secretRef:
+                name: postgres-credentials
+            - secretRef:
+                name: celery-credentials
+          {{- if .Values.dagster.hostPath.enabled }}
+          volumeMounts:
+            - name: app-code
+              mountPath: /opt/dagster/app
+          {{- end }}
+          readinessProbe:
+            tcpSocket:
+              port: 4000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+          resources:
+            {{- toYaml .Values.dagster.userCode.resources | nindent 12 }}
+      {{- if .Values.dagster.hostPath.enabled }}
+      volumes:
+        - name: app-code
+          hostPath:
+            path: {{ .Values.dagster.hostPath.appPath }}
+            type: Directory
+      {{- end }}

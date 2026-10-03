@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dagster-config
+  namespace: {{ .Values.namespace }}
+data:
+  dagster.yaml: |
+{{ .Files.Get "files/dagster.yaml" | indent 4 }}
+  workspace.yaml: |
+{{ .Files.Get "files/workspace.yaml" | indent 4 }}
