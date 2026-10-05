@@ -78,7 +78,7 @@ services:
     working_dir: /opt/dagster/app/dbt/projects
     entrypoint: bash -c "dbt parse && dbt docs generate && dbt docs serve --host 0.0.0.0 --port 8001"
     volumes:
-      - ./app/dbt/:/opt/dagster/app/dbt/
+      - ../../app/dbt/:/opt/dagster/app/dbt/
 
   # This service runs a code server that downloads custom code.
   dagster-user-code:
@@ -100,7 +100,7 @@ services:
       dbt-docs-and-prepare-project:
         condition: service_started
     volumes:
-      - ./app/:/opt/dagster/app/
+      - ../../app/:/opt/dagster/app/
 
   # This service is running under a dagster web server.
   dagster-webserver:
@@ -129,9 +129,9 @@ services:
       PG_DB: ${PG_DB}
       PG_PORT: ${PG_PORT}
     volumes:
-      - ./app/dagster_home/storage/:/opt/dagster/app/dagster_home/storage
-      - ./app/dagster_home/dagster.yaml:/opt/dagster/app/dagster_home/dagster.yaml
-      - ./app/dagster_home/workspace.yaml:/opt/dagster/app/dagster_home/workspace.yaml
+      - ../../app/dagster_home/storage/:/opt/dagster/app/dagster_home/storage
+      - ../../app/dagster_home/dagster.yaml:/opt/dagster/app/dagster_home/dagster.yaml
+      - ../../app/dagster_home/workspace.yaml:/opt/dagster/app/dagster_home/workspace.yaml
     depends_on:
       dagster-postgresql:
         condition: service_healthy
@@ -158,8 +158,8 @@ services:
       CELERY_BROKER_URL: ${CELERY_BROKER_URL}
       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
     volumes:
-      - ./app/dagster_home/dagster.yaml:/opt/dagster/app/dagster_home/dagster.yaml
-      - ./app/dagster_home/workspace.yaml:/opt/dagster/app/dagster_home/workspace.yaml
+      - ../../app/dagster_home/dagster.yaml:/opt/dagster/app/dagster_home/dagster.yaml
+      - ../../app/dagster_home/workspace.yaml:/opt/dagster/app/dagster_home/workspace.yaml
     depends_on:
       dagster-postgresql:
         condition: service_healthy
@@ -196,7 +196,7 @@ services:
       dagster-redis:
         condition: service_healthy
     volumes:
-      - ./app/:/opt/dagster/app/
+      - ../../app/:/opt/dagster/app/
 
 
 networks:

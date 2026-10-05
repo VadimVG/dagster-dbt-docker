@@ -5,7 +5,7 @@ dagster:
   image: dagster-user-code:latest
   hostPath:
     enabled: true
-    appPath: /mnt/projects/dagster-dbt-docker/ci/docker/app
+    appPath: /mnt/projects/dagster-dbt-docker/app
   celeryExecutor:
     replicas: 1
     concurrency: 2
