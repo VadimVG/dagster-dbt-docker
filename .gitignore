@@ -8,3 +8,4 @@ docker-compose.test.yaml
 .user.yml
 venv
 notes.txt
+CLAUDE.md

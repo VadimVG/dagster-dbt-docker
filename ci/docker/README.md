@@ -25,13 +25,13 @@ All containers use the Docker network `data-platform-net`. The DWH project creat
 
 ## 2. The .env file
 
-The `.env` file must be next to the Compose file. Do not commit it.
+The `.env` file must be next to the Compose file. Do not commit real passwords. `.env` is in `.gitignore`, but a file that git already tracks stays tracked. Remove it from the index once with `git rm --cached ci/docker/.env`.
 
 ```bash
 # ===== Data Warehouse (dbt) =====
 DWH_USER=""
 DWH_PASSWORD=""
-DWH_PORT="5432"
+DWH_PORT=""
 DWH_DB=""
 DWH_HOST=""
 
@@ -39,7 +39,7 @@ DWH_HOST=""
 PG_USERNAME=dagster_user
 PG_PASSWORD=dagster_password
 PG_HOST=dagster-postgresql
-PG_PORT=5433
+PG_PORT=5432
 PG_DB=dagster
 
 # ===== RabbitMQ =====
@@ -51,6 +51,12 @@ DEFAULT_PASS=guest
 CELERY_BROKER_URL=pyamqp://guest:guest@dagster-rabbitmq:5672//
 CELERY_RESULT_BACKEND=redis://dagster-redis:6379/0
 ```
+
+Keep `PG_PORT=5432`. Postgres listens on 5432 inside the container, the Compose file publishes `${PG_PORT}:${PG_PORT}`, and `app/dagster_home/dagster.yaml` has the port `5432` written in it. Another value breaks the port mapping, or you must change both files.
+
+The user and password in `CELERY_BROKER_URL` must be the same as `DEFAULT_USER` and `DEFAULT_PASS`. The host names (`dagster-rabbitmq`, `dagster-redis`) are the Compose container names.
+
+Dagster reads its instance config from `app/dagster_home/dagster.yaml` and `app/dagster_home/workspace.yaml`. The Kubernetes chart has its own copies in `ci/k8s/dagster-dbt-chart/files/`. Keep both copies in sync. After you change these files, run `docker compose restart`.
 
 ## 3. Start
 
@@ -112,11 +118,14 @@ docker compose down
 ## 6. How it works
  
 The flow in simple words:
-1. You trigger a job in the Dagster webserver, or a schedule starts it.
-2. The daemon picks up the run and sends each step to Celery through RabbitMQ.
-3. A Celery worker (the executor) picks up the step and runs it — usually a dbt command.
-4. dbt transforms the raw data in the Analytics PostgreSQL database.
-5. Redis stores the result and status of each step. You can watch progress in the Dagster UI and in Flower.
+
+1. You trigger a job in the Dagster webserver, or a schedule starts it. The run goes into the queue.
+2. The daemon takes the run from the queue and launches it through the user code server.
+3. The run process (in the user code container) sends each step to Celery through RabbitMQ.
+4. A Celery worker (the executor) picks up the step and runs it — usually a dbt command.
+5. dbt transforms the raw data in the Analytics PostgreSQL database.
+6. Redis stores the Celery task results. Dagster writes the run events to its own Postgres. You can watch progress in the Dagster UI and in Flower.
+
 ### Celery executor in detail
  
 ![celery_executor](/readme_images/celery_executor.png)
