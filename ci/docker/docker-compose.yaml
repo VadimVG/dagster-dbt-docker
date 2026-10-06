@@ -65,7 +65,7 @@ services:
     container_name: dbt-docs-and-prepare-project
     build:
         context: .
-        dockerfile: Dockerfile_dbt_docs
+        dockerfile: Dockerfile.dbt
     image: dbt-docs-image
     ports:
         - 8001:8001
