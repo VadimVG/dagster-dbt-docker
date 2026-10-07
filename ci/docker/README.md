@@ -56,7 +56,9 @@ Keep `PG_PORT=5432`. Postgres listens on 5432 inside the container, the Compose 
 
 The user and password in `CELERY_BROKER_URL` must be the same as `DEFAULT_USER` and `DEFAULT_PASS`. The host names (`dagster-rabbitmq`, `dagster-redis`) are the Compose container names.
 
-Dagster reads its instance config from `app/dagster_home/dagster.yaml` and `app/dagster_home/workspace.yaml`. The Kubernetes chart has its own copies in `ci/k8s/dagster-dbt-chart/files/`. Keep both copies in sync. After you change these files, run `docker compose restart`.
+Dagster reads its instance config from `app/dagster_home/dagster.yaml` and `app/dagster_home/workspace.yaml`. The Kubernetes chart has its own copies in `ci/k8s/dagster-dbt-chart/files/`. They are different on purpose: Compose uses `DefaultRunLauncher`, the cluster uses `K8sRunLauncher`. After you change these files, run `docker compose restart`.
+
+Compose runs the job steps on Celery. The executor is chosen by the env var `DAGSTER_BUILD_TYPE`. The Compose file sets `DAGSTER_BUILD_TYPE: docker` for `dagster-user-code` and `dagster-celery-executor`. Without this variable, the code uses the multiprocess executor (the Kubernetes setup), and the Celery worker gets no tasks.
 
 ## 3. Start
 
