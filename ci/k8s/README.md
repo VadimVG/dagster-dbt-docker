@@ -6,6 +6,7 @@ The setup is close to a real production setup, but it runs on one laptop:
  
 - The cluster is created with **kind** (Kubernetes inside Docker).
 - The application is installed with a **Helm chart**.
+- Every Dagster run is a separate Kubernetes Job (**K8sRunLauncher**). The pod is deleted 30 seconds after the run ends.
 - Passwords for the cluster are not stored in the repository. This app reads them from **HashiCorp Vault**, and **External Secrets Operator** copies them into the cluster.
 - The data warehouse (DWH) and Vault run **outside** the cluster, as separate Docker Compose projects.
 
@@ -16,17 +17,27 @@ Run all commands from the **root of the repository**, not from a subfolder.
 Inside the cluster (namespace `dagster-dbt`):
  
 - Postgres (Dagster metadata database)
-- RabbitMQ (Celery broker)
-- Redis (Celery result backend)
 - Dagster webserver
-- Dagster daemon
+- Dagster daemon (takes runs from the queue and creates a Job for each run)
 - Dagster user code (gRPC server with the pipelines)
-- Dagster Celery executor (worker)
-- Flower (Celery monitoring)
 - dbt docs (web server) and a Job that builds the docs
-
+- Run pods `dagster-run-<run_id>`. They exist only while a run works, plus 30 seconds.
 
 External Secrets Operator runs in its own namespace, `external-secrets`.
+
+### How a run works
+
+1. You start a job in the UI, or a schedule starts it. The run goes into the queue.
+2. The daemon takes the run from the queue. `K8sRunLauncher` creates a Kubernetes Job `dagster-run-<run_id>`.
+3. The run pod loads the code and runs all steps inside itself, in parallel processes (`multiprocess_executor`, up to 4 steps at a time).
+4. The pod writes the run events to Postgres. You see them in the UI.
+5. 30 seconds after the run ends, Kubernetes deletes the Job and its pod (`dagster.runLauncher.ttlSecondsAfterFinished`).
+
+The executor is chosen by the env var `DAGSTER_BUILD_TYPE`. The chart sets it to `k8s`. Docker Compose sets it to `docker` and uses Celery.
+
+The daemon and the webserver use the ServiceAccount `dagster`. Its Role allows only to create, read and delete Jobs and to read pods in the namespace `dagster-dbt` (`templates/dagster/rbac.yaml`).
+
+The step output (stdout/stderr) is stored inside the run pod, so it is lost when the pod is deleted. The Dagster events stay in the UI.
  
 ## 2. Requirements
  
@@ -47,33 +58,26 @@ You also need two other Docker Compose projects, outside this repository:
  
 The app reads its secrets from Vault. It uses the KV version 2 engine, mounted at `secret/`. This guide does not explain how to install Vault.
  
-Create these four entries. The key names must be exactly the same, because the pods read them as environment variables.
+Create these two entries. The key names must be exactly the same, because the pods read them as environment variables.
  
 - `secret/dagster-dbt/postgres`
   - `POSTGRES_HOST`
   - `POSTGRES_USER`
   - `POSTGRES_PASSWORD`
   - `POSTGRES_DB`
-- `secret/dagster-dbt/rabbitmq`
-  - `RABBITMQ_DEFAULT_VHOST`
-  - `RABBITMQ_DEFAULT_USER`
-  - `RABBITMQ_DEFAULT_PASS`
-- `secret/dagster-dbt/celery`
-  - `CELERY_BROKER_URL`
-  - `CELERY_RESULT_BACKEND`
 - `secret/dagster-dbt/dwh`
   - `DWH_HOST`
   - `DWH_PORT`
   - `DWH_USER`
   - `DWH_PASSWORD`
   - `DWH_DB`
+
 Important rules:
  
 - `POSTGRES_HOST` is `postgres`. It is the name of the Postgres Service in the cluster.
 - `DWH_HOST` must be the same as `dagster.dwh.host` in `values.yaml` (for example `dwh-postgres`).
 - Every value must be a string. Write the port as `"5432"`.
-- The user and password in the RabbitMQ entry must be the same as the user and password inside `CELERY_BROKER_URL`.
-- If a password has special characters (`@`, `/`, `:`), encode them in `CELERY_BROKER_URL` (for example `%40`).
+
 If Vault runs in dev mode, it keeps data only in memory. After a restart of the Vault container, load the secrets again.
  
 Check the entries:
@@ -82,7 +86,7 @@ Check the entries:
 docker exec vault vault kv list secret/dagster-dbt
 ```
  
-You should see `celery`, `dwh`, `postgres` and `rabbitmq`.
+You should see `dwh` and `postgres`.
  
 ## 4. First start from zero
  
@@ -96,7 +100,7 @@ Start the DWH project and the Vault project. In each project folder:
 docker compose up -d
 ```
  
-Then check that the four secret entries exist (see section 4).
+Then check that the two secret entries exist (see section 3).
  
 ### Step 2. Check the paths
  
@@ -228,30 +232,39 @@ kubectl get job -n dagster-dbt
 What you should see:
  
 - The SecretStore has status `Valid` and `READY True`.
-- All four ExternalSecrets have status `SecretSynced`.
+- Both ExternalSecrets have status `SecretSynced`.
 - All pods are `Running`.
 - The Job `dbt-prepare` is `Complete`.
+
+To check the run pods, start any job in the UI and watch:
+
+```bash
+kubectl get jobs,pods -n dagster-dbt
+```
+
+A Job `dagster-run-<run_id>` and its pod appear, and disappear 30 seconds after the run ends.
+
 It is normal to see short errors in the first minutes:
  
 - Some pods wait in `CreateContainerConfigError` until the Secrets are created. They start by themselves after a few seconds.
 - The `dbt-docs` pod restarts until the Job `dbt-prepare` finishes.
+
 ### Step 9. Open the web interfaces
  
 Run each command in a separate terminal:
  
 ```bash
 kubectl port-forward -n dagster-dbt svc/dagster-webserver 3000:3000
-kubectl port-forward -n dagster-dbt svc/flower 5555:5555
 kubectl port-forward -n dagster-dbt svc/dbt-docs 8001:8001
-kubectl port-forward -n dagster-dbt svc/rabbitmq 15672:15672
 ```
  
 ## 5. Values: base and dev
  
 The chart has two values files.
  
-- `values.yaml` is the base. It holds the production defaults: tagged image versions, no code mounted from disk, two Celery workers, long shutdown time.
-- `values-dev.yaml` holds only the differences for local work: `latest` image tags, the code mounted from your disk, one worker with low concurrency, fast shutdown.
+- `values.yaml` is the base. It holds the production defaults: tagged image versions, no code mounted from disk, bigger resources for run pods.
+- `values-dev.yaml` holds only the differences for local work: `latest` image tags, the code mounted from your disk, smaller resources for run pods.
+
 Helm puts `values-dev.yaml` on top of `values.yaml`. Dictionaries are merged key by key. Lists are replaced as a whole.
  
 Useful commands:
@@ -289,13 +302,13 @@ helm rollback dagster-dbt <revision> -n dagster-dbt
  
 ### Change the Python code
  
-The code is mounted from your disk, so you do not need to build the image. The running processes already loaded the old code, so restart them:
+The code is mounted from your disk, so you do not need to build the image. Every new run pod loads the code again, so you only need to restart the code server:
  
 ```bash
 kubectl rollout restart deployment/dagster-user-code -n dagster-dbt
-kubectl rollout restart deployment/dagster-daemon -n dagster-dbt
-kubectl rollout restart deployment/dagster-celery-executor -n dagster-dbt
 ```
+
+If the UI still shows an error for the code location after the restart, click **Reload** in **Deployment → Code locations**.
  
 You must build and load the image again only when the dependencies change.
  
@@ -306,10 +319,11 @@ For the cluster, these files live in `ci/k8s/dagster-dbt-chart/files/`. After yo
 ```bash
 kubectl rollout restart deployment/dagster-webserver -n dagster-dbt
 kubectl rollout restart deployment/dagster-daemon -n dagster-dbt
-kubectl rollout restart deployment/dagster-celery-executor -n dagster-dbt
 ```
+
+New run pods read `dagster.yaml` from the ConfigMap when they start, so they need no restart.
  
-Docker Compose uses its own copies of these files (see `ci/docker/README.md`). Keep both copies in sync.
+`files/dagster.yaml` is rendered by Helm (`tpl`), so it can use `{{ .Values... }}`. Docker Compose uses its own copy in `app/dagster_home/`. The two files are different on purpose: Compose uses `DefaultRunLauncher`, the cluster uses `K8sRunLauncher`. Keep the storage sections the same.
  
 ### Change a secret
  
@@ -320,13 +334,15 @@ kubectl rollout restart deployment -n dagster-dbt
 kubectl rollout restart statefulset -n dagster-dbt
 ```
  
-A new password for Postgres or RabbitMQ does not change the password inside the existing database. They read the user and password only when the disk is first created. Change the password inside the service too, or delete the disk.
+A new password for Postgres does not change the password inside the existing database. Postgres reads the user and password only when the disk is first created. Change the password inside the service too, or delete the disk.
  
 ### Look at logs and state
  
 ```bash
 kubectl get pods -n dagster-dbt
 kubectl logs -n dagster-dbt deploy/dagster-daemon --tail=50
+kubectl get jobs -n dagster-dbt                       # run Jobs dagster-run-<run_id>
+kubectl logs -n dagster-dbt job/dagster-run-<run_id>  # works only while the pod exists (30 s after the end)
 kubectl describe pod <pod-name> -n dagster-dbt
 kubectl get events -n dagster-dbt --sort-by=.lastTimestamp
 ```
@@ -363,7 +379,7 @@ Remove the application, but keep the cluster:
 helm uninstall dagster-dbt -n dagster-dbt
 ```
  
-The disks of Postgres and RabbitMQ stay after this command. To start with empty databases, delete them too:
+The Postgres disk stays after this command. To start with an empty database, delete it too:
  
 ```bash
 kubectl delete pvc --all -n dagster-dbt
@@ -381,11 +397,11 @@ Remove the whole cluster (this deletes all data inside it, but not Vault and not
 kind delete cluster --name dev-1
 ```
  
-After you create a new cluster, repeat the steps from section 5, starting with Step 3. You must connect the networks, load the images, install the operator, and create the token secret again.
+After you create a new cluster, repeat the steps from section 4, starting with Step 3. You must connect the networks, load the images, install the operator, and create the token secret again.
  
 ## 8. Troubleshooting
  
-### A pod shows ErrImagePull or ImagePullBackOff for dagster-user-code or dbt-docs-image
+### A pod shows ErrImagePull or ImagePullBackOff for dagster-user-code, dagster-run-... or dbt-docs-image
  
 The image is not in the node. Load it again (Step 4). This is common after you create a new cluster.
  
@@ -429,12 +445,14 @@ The External Secrets pods are not ready yet. Wait for them (Step 5) and try agai
 The pod does not have the Secret in its `envFrom` list, or it has not been restarted after the Secret changed. Check with:
  
 ```bash
-kubectl exec -n dagster-dbt deploy/<name> -- env | grep -E "POSTGRES|CELERY|DWH"
+kubectl exec -n dagster-dbt deploy/<name> -- env | grep -E "POSTGRES|DWH|DAGSTER"
 ```
  
-### A Celery task does not reach the worker
- 
-Check that the Dagster user code, the daemon and the worker all have `celery-credentials`. Check in the worker logs that it connected to the broker.
+### A run stays in STARTING or fails before the first step
+
+- Check the daemon logs: `kubectl logs -n dagster-dbt deploy/dagster-daemon --tail=100`. The error `Forbidden` means that the RBAC from `templates/dagster/rbac.yaml` is missing, or the daemon does not use the ServiceAccount `dagster`.
+- Check the run pod: `kubectl describe pod -n dagster-dbt -l job-name=dagster-run-<run_id>`. Common reasons are a missing image (Step 4) or a missing Secret.
+- If the run pod does not start in 5 minutes, run monitoring marks the run as failed (`run_monitoring.start_timeout_seconds` in `files/dagster.yaml`).
  
 ### A pod stays in Terminating for a long time
  
@@ -444,4 +462,4 @@ The node is probably overloaded, for example after all pods restarted at the sam
 kubectl delete pod <pod-name> -n dagster-dbt --grace-period=0 --force
 ```
  
-If the laptop is slow, lower `dagster.celeryExecutor.concurrency` in `values-dev.yaml`.
+If the laptop is slow, lower `max_concurrent_runs` in `files/dagster.yaml` (how many run pods work at the same time) or `dagster.runLauncher.resources` in `values-dev.yaml`.
