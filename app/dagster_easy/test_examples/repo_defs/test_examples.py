@@ -1,7 +1,7 @@
 import dagster as dg
-from dagster_celery import celery_executor
 
 from dagster_easy.resources.resources import dbt_resource
+from dagster_easy.utils.helpers import get_executor
 from dagster_easy.test_examples.jobs import (
     asset_example,
     op_example,
@@ -34,6 +34,6 @@ test_examples = dg.create_repository_using_definitions_args(
         "dbt": dbt_resource,
     },
     
-    executor=celery_executor,
+    executor=get_executor(),
     
 )
