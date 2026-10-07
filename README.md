@@ -2,13 +2,13 @@
  
 ## 📖 Description
  
-This project is an ETL pipeline. Dagster handles orchestration — it starts, schedules, and watches the jobs. dbt handles the data transformation — it turns raw data into clean, usable tables.
+This project is a data platform. Dagster handles orchestration — it starts, schedules, and watches the jobs. dbt handles the data transformation — it turns raw data into clean, usable tables.
  
 The project includes:
 
 - **Dagster** orchestrates the pipeline. It starts jobs, runs them on a schedule, and watches that everything finishes correctly.
 - **dbt** transforms the raw data. It turns it into clean, ready-to-use tables.
-- **Celery** (RabbitMQ broker, Redis result backend) runs the job steps.
+- **Job steps** run in two ways: on **Celery** workers (RabbitMQ broker, Redis result backend) in Docker Compose, or in a separate **Kubernetes pod for each run** (K8sRunLauncher) in Kubernetes.
 - **PostgreSQL** stores the processed data for analytics (an external service).
 - **Vault** stores secrets in the Kubernetes setup. Docker Compose reads them from the `.env` file.
 - **Python libraries** for data processing.
