@@ -2,6 +2,7 @@ dagster == 1.9.8
 dagster-webserver == 1.9.8
 dagster-postgres == 0.25.8
 dagster-celery == 0.25.8
+dagster-k8s == 0.25.8
 redis == 5.2.1
 celery == 5.5.3
 kombu == 5.5.4

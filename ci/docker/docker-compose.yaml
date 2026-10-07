@@ -89,6 +89,7 @@ services:
     image: dagster-image
     entrypoint: dagster api grpc -h 0.0.0.0 -p 4000 -f dagster_easy/definitions.py
     environment:
+      DAGSTER_BUILD_TYPE: docker
       PG_USERNAME: ${PG_USERNAME}
       PG_PASSWORD: ${PG_PASSWORD}
       PG_HOST: ${PG_HOST}
@@ -173,6 +174,7 @@ services:
       dockerfile: Dockerfile
     image: dagster-image
     environment:
+      DAGSTER_BUILD_TYPE: docker
       PYTHONPATH: /opt/dagster/app
       PG_USERNAME: ${PG_USERNAME}
       PG_PASSWORD: ${PG_PASSWORD}
