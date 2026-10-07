@@ -15,6 +15,7 @@ spec:
       labels:
         app: dagster-daemon
     spec:
+      serviceAccountName: {{ .Values.dagster.serviceAccountName }}
       containers:
         - name: dagster-daemon
           image: {{ .Values.dagster.image }}
@@ -27,8 +28,6 @@ spec:
           envFrom:
             - secretRef:
                 name: postgres-credentials
-            - secretRef:
-                name: celery-credentials
           volumeMounts:
             - name: dagster-config
               mountPath: /opt/dagster/app/dagster_home/dagster.yaml

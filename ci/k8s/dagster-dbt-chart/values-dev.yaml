@@ -6,10 +6,7 @@ dagster:
   hostPath:
     enabled: true
     appPath: /mnt/projects/dagster-dbt-docker/app
-  celeryExecutor:
-    replicas: 1
-    concurrency: 2
-    terminationGracePeriodSeconds: 10
+  runLauncher:
     resources:
       requests: {cpu: 200m, memory: 512Mi}
       limits: {cpu: "1", memory: 1Gi}

@@ -21,11 +21,12 @@ spec:
           ports:
             - name: grpc
               containerPort: 4000
+          env:
+            - name: DAGSTER_BUILD_TYPE
+              value: k8s
           envFrom:
             - secretRef:
                 name: postgres-credentials
-            - secretRef:
-                name: celery-credentials
           {{- if .Values.dagster.hostPath.enabled }}
           volumeMounts:
             - name: app-code

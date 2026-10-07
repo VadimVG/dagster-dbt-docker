@@ -13,6 +13,7 @@ spec:
       labels:
         app: dagster-webserver
     spec:
+      serviceAccountName: {{ .Values.dagster.serviceAccountName }}
       containers:
         - name: dagster-webserver
           image: {{ .Values.dagster.image }}

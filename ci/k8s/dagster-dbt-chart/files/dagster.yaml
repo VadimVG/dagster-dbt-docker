@@ -13,8 +13,50 @@ run_coordinator:
     max_concurrent_runs: 5
 
 run_launcher:
-  module: dagster.core.launcher
-  class: DefaultRunLauncher
+  module: dagster_k8s.launcher
+  class: K8sRunLauncher
+  config:
+    job_namespace: {{ .Values.namespace }}
+    service_account_name: {{ .Values.dagster.serviceAccountName }}
+    job_image: {{ .Values.dagster.image }}
+    image_pull_policy: IfNotPresent
+    dagster_home: /opt/dagster/dagster_home
+    instance_config_map: dagster-config
+    load_incluster_config: true
+    env_secrets:
+      - postgres-credentials
+      - dwh-credentials
+    env_vars:
+      - DAGSTER_BUILD_TYPE=k8s
+    volumes:
+      {{- if .Values.dagster.hostPath.enabled }}
+      - name: app-code
+        hostPath:
+          path: {{ .Values.dagster.hostPath.appPath }}
+          type: Directory
+      {{- end }}
+      - name: dbt-target
+        persistentVolumeClaim:
+          claimName: dbt-target
+    volume_mounts:
+      {{- if .Values.dagster.hostPath.enabled }}
+      - name: app-code
+        mountPath: /opt/dagster/app
+      {{- end }}
+      - name: dbt-target
+        mountPath: {{ .Values.dbt.profilesDir }}/target
+    run_k8s_config:
+      job_spec_config:
+        ttl_seconds_after_finished: {{ .Values.dagster.runLauncher.ttlSecondsAfterFinished }}
+      container_config:
+        resources:
+          {{- toYaml .Values.dagster.runLauncher.resources | nindent 10 }}
+
+run_monitoring:
+  enabled: true
+  start_timeout_seconds: 300
+  poll_interval_seconds: 60
+  max_resume_run_attempts: 0
 
 run_storage:
   module: dagster_postgres.run_storage
