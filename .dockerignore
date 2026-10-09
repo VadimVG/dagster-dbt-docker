@@ -1,0 +1,21 @@
+# secrets
+**/.env
+
+# local environment and VCS
+venv/
+.git/
+**/__pycache__/
+
+# runtime data, created when the app runs
+app/dagster_home/storage/
+app/dagster_home/dagster_celery/
+app/dbt/projects/target/
+app/dbt/projects/logs/
+app/dbt/projects/.user.yml
+
+# not needed in the images
+ci/k8s/
+readme_images/
+README.md
+CLAUDE.md
+notes.txt
