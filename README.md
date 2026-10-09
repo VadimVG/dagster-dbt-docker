@@ -44,7 +44,7 @@ The Kubernetes setup also needs the network `secrets-net` from the Vault project
 
 ## 🚀 Launch and testing
  
-1. Open http://localhost:3000/overview/activity/timeline. You should see the Dagster start page. In Kubernetes, start the port-forward first (see the K8s guide, Step 9).
+1. Open http://localhost:3000/overview/activity/timeline. You should see the Dagster start page. In Kubernetes, start the port-forward first (see the K8s guide, Step 8).
 
    ![start_page](readme_images/start_page.png)
  
