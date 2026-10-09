@@ -78,6 +78,8 @@ Web interfaces:
 
 The code is mounted from `../../app/` (the code is two folders up), so you do not need to build the image after code changes.
 
+The images also contain a copy of `app/`, for the production mode in Kubernetes. The mounted folder covers this copy. The build context is the repository root (`context: ../..` in the Compose file), and `.dockerignore` in the root keeps `.env`, `venv/`, `.git/` and runtime data out of the images.
+
 After a change in the Python code:
 
 ```bash
