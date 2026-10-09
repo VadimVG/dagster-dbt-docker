@@ -154,12 +154,14 @@ The node must be `Ready`, and the second command must print an IP address.
 The cluster cannot see images from your local Docker. You must load them into the node:
  
 ```bash
-docker build -t dagster-user-code:latest -f ci/docker/Dockerfile ci/docker
-docker build -t dbt-docs-image:latest -f ci/docker/Dockerfile.dbt ci/docker
+docker build -t dagster-user-code:latest -f ci/docker/Dockerfile .
+docker build -t dbt-docs-image:latest -f ci/docker/Dockerfile.dbt .
 kind load docker-image dagster-user-code:latest dbt-docs-image:latest --name dev-1
 ```
  
-The build context is `ci/docker`, because `requirements.txt` is there. The app code is not copied into the images. In development it is mounted from your disk.
+The build context is the repository root (the `.` at the end), so run these commands from the root. The images contain a copy of the code: `Dockerfile` copies `app/`, `Dockerfile.dbt` copies `app/dbt/`. The file `.dockerignore` in the root keeps `.env`, `venv/`, `.git/` and runtime data (`storage/`, `target/`, `logs/`) out of the images.
+
+In development the code from your disk (hostPath) covers the code in the image, so your changes work without a new build.
  
 Do this again every time you create a new cluster. The images live inside the node, so they are lost when the cluster is deleted. Build again only if the Dockerfiles or the dependencies changed.
  
@@ -216,7 +218,7 @@ helm install dagster-dbt ci/k8s/dagster-dbt-chart \
   -n dagster-dbt -f ci/k8s/dagster-dbt-chart/values-dev.yaml
 ```
  
-Always add `-f ci/k8s/dagster-dbt-chart/values-dev.yaml` for local work. Without it, you get the base (production) values. In the base values the code is not mounted from your disk, so the pods have no code.
+Always add `-f ci/k8s/dagster-dbt-chart/values-dev.yaml` for local work. Without it, you get the base (production) values: the pods use the code inside the images with the tag `v1.0.0`, not the code on your disk. See section 5.
  
 If you run these commands in a folder that does not contain `ci/`, Helm can say `repo ci not found`. It thinks that `ci/k8s/...` is the name of a chart repository. Go to the repository root and try again.
  
@@ -262,7 +264,7 @@ kubectl port-forward -n dagster-dbt svc/dbt-docs 8001:8001
  
 The chart has two values files.
  
-- `values.yaml` is the base. It holds the production defaults: tagged image versions, no code mounted from disk, bigger resources for run pods.
+- `values.yaml` is the base. It holds the production defaults: tagged image versions with the code inside, no code mounted from disk, bigger resources for run pods.
 - `values-dev.yaml` holds only the differences for local work: `latest` image tags, the code mounted from your disk, smaller resources for run pods.
 
 Helm puts `values-dev.yaml` on top of `values.yaml`. Dictionaries are merged key by key. Lists are replaced as a whole.
@@ -274,6 +276,49 @@ helm get values dagster-dbt -n dagster-dbt          # values given by you
 helm get values dagster-dbt -n dagster-dbt --all    # final values
 helm get manifest dagster-dbt -n dagster-dbt        # what is installed now
 ```
+
+### Production mode (code in the image)
+
+In production mode no code comes from your disk. All pods, the run pods too, use the code inside the image. You can test this mode in kind.
+
+1. Build the images with the tag from `values.yaml` and load them:
+
+   ```bash
+   docker build -t dagster-user-code:v1.0.0 -f ci/docker/Dockerfile .
+   docker build -t dbt-docs-image:v1.0.0 -f ci/docker/Dockerfile.dbt .
+   kind load docker-image dagster-user-code:v1.0.0 dbt-docs-image:v1.0.0 --name dev-1
+   ```
+
+   A separate tag keeps the production and the dev images apart. Both can live in the node.
+
+2. Check that the chart has no hostPath in the base values. The first command must print nothing:
+
+   ```bash
+   helm template dagster-dbt ci/k8s/dagster-dbt-chart | grep -n "hostPath"
+   helm template dagster-dbt ci/k8s/dagster-dbt-chart | grep -n "image:"
+   ```
+
+3. Install without `values-dev.yaml`:
+
+   ```bash
+   helm uninstall dagster-dbt -n dagster-dbt
+   helm install dagster-dbt ci/k8s/dagster-dbt-chart -n dagster-dbt
+   ```
+
+4. Check that the code comes from the image:
+
+   ```bash
+   kubectl get deploy -n dagster-dbt -o yaml | grep -c hostPath    # 0
+   kubectl exec -n dagster-dbt deploy/dagster-user-code -- sh -c 'grep " /opt/dagster/app " /proc/mounts || echo "not mounted, code from image"'
+   ```
+
+5. Run the test jobs. A run pod must use the image `dagster-user-code:v1.0.0` and must have no volume `app-code`.
+
+Each run pod asks for 500m CPU and 1Gi memory in the base values. On a laptop, start the jobs one by one, or the run pods can wait in `Pending`.
+
+To go back to dev mode, uninstall the release and install it again with `-f ci/k8s/dagster-dbt-chart/values-dev.yaml`.
+
+For a real production cluster you also need an image registry, and a new image tag for each release (`v1.0.1`, ...) set in `dagster.image` and `dbt.image`.
  
 ## 6. Daily work
  
@@ -311,6 +356,8 @@ kubectl rollout restart deployment/dagster-user-code -n dagster-dbt
 If the UI still shows an error for the code location after the restart, click **Reload** in **Deployment → Code locations**.
  
 You must build and load the image again only when the dependencies change.
+
+In production mode the code is in the image. After a code change, build the images with a new tag, load or push them, and set the new tag in `dagster.image` and `dbt.image`.
  
 ### Change dagster.yaml or workspace.yaml
  
@@ -403,7 +450,7 @@ After you create a new cluster, repeat the steps from section 4, starting with S
  
 ### A pod shows ErrImagePull or ImagePullBackOff for dagster-user-code, dagster-run-... or dbt-docs-image
  
-The image is not in the node. Load it again (Step 4). This is common after you create a new cluster.
+The image is not in the node. Load it again (Step 4, or the production mode steps in section 5 for the tag `v1.0.0`). This is common after you create a new cluster.
  
 ### The DWH name does not resolve, or `pg_isready` says "no response"
  
