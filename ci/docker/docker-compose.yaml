@@ -64,8 +64,8 @@ services:
   dbt-docs-and-prepare-project:
     container_name: dbt-docs-and-prepare-project
     build:
-        context: .
-        dockerfile: Dockerfile.dbt
+        context: ../..
+        dockerfile: ci/docker/Dockerfile.dbt
     image: dbt-docs-image
     ports:
         - 8001:8001
@@ -84,8 +84,8 @@ services:
   dagster-user-code:
     container_name: dagster-user-code
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: ci/docker/Dockerfile
     image: dagster-image
     entrypoint: dagster api grpc -h 0.0.0.0 -p 4000 -f dagster_easy/definitions.py
     environment:
@@ -107,8 +107,8 @@ services:
   dagster-webserver:
     container_name: dagster-webserver
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: ci/docker/Dockerfile
     image: dagster-image
     working_dir: /opt/dagster/app/dagster_home
     entrypoint:
@@ -143,8 +143,8 @@ services:
   dagster-daemon:
     container_name: dagster-daemon
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: ci/docker/Dockerfile
     image: dagster-image
     working_dir: /opt/dagster/app/dagster_home
     entrypoint:
@@ -170,8 +170,8 @@ services:
   dagster-celery-executor:
     container_name: dagster-celery-executor
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: ci/docker/Dockerfile
     image: dagster-image
     environment:
       DAGSTER_BUILD_TYPE: docker
