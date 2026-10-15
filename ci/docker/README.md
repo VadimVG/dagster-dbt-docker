@@ -25,7 +25,13 @@ All containers use the Docker network `data-platform-net`. The DWH project creat
 
 ## 2. The .env file
 
-The `.env` file must be next to the Compose file. Do not commit real passwords. `.env` is in `.gitignore`, but a file that git already tracks stays tracked. Remove it from the index once with `git rm --cached ci/docker/.env`.
+The `.env` file must be next to the Compose file. It is not in git (`.gitignore`). Create it from the example once:
+
+```bash
+cp .env.example .env
+```
+
+Then fill in the DWH values. Do not commit `.env`. If you add a new variable, add it to `.env.example` too.
 
 ```bash
 # ===== Data Warehouse (dbt) =====
