@@ -417,7 +417,7 @@ Remove the whole cluster (this deletes all data inside it, but not Vault and not
 kind delete cluster --name dev-1
 ```
  
-After you create a new cluster, repeat the steps from section 4, starting with Step 3. You must connect the networks, load the images, install the operator, and create the token secret again.
+After you create a new cluster, repeat the steps from section 4, starting with Step 3. You must connect the networks, load the images, install the operator, and create the Secret `vault-approle` again.
  
 ## 8. Troubleshooting
  
