@@ -4,9 +4,9 @@ externalSecrets:
   refreshInterval: 1h
   secrets:
     - name: postgres-credentials
-      key: dagster-dbt/postgres
+      key: dagster-dbt/postgres-dagster
     - name: dwh-credentials
-      key: dagster-dbt/dwh
+      key: dagster-dbt/postgres-dwh
 
 postgres:
   image: postgres:17
@@ -32,7 +32,7 @@ dagster:
     enabled: false
     appPath: ""
   dwh:
-    externalName: postgre-postgres-1
+    externalName: postgres-dwh-postgres-1
     host: dwh-postgres
   userCode:
     resources:

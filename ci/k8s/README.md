@@ -57,15 +57,17 @@ You also need two other Docker Compose projects, outside this repository:
 ## 3. Secrets that must exist
  
 The app reads its secrets from Vault. It uses the KV version 2 engine, mounted at `secret/`. This guide does not explain how to install Vault.
+
+The operator logs in to Vault with the AppRole `dagster-dbt`. This role can only read entries under `secret/dagster-dbt/`.
  
 Create these two entries. The key names must be exactly the same, because the pods read them as environment variables.
  
-- `secret/dagster-dbt/postgres`
+- `secret/dagster-dbt/postgres-dagster`
   - `POSTGRES_HOST`
   - `POSTGRES_USER`
   - `POSTGRES_PASSWORD`
   - `POSTGRES_DB`
-- `secret/dagster-dbt/dwh`
+- `secret/dagster-dbt/postgres-dwh`
   - `DWH_HOST`
   - `DWH_PORT`
   - `DWH_USER`
@@ -78,15 +80,13 @@ Important rules:
 - `DWH_HOST` must be the same as `dagster.dwh.host` in `values.yaml` (for example `dwh-postgres`).
 - Every value must be a string. Write the port as `"5432"`.
 
-If Vault runs in dev mode, it keeps data only in memory. After a restart of the Vault container, load the secrets again.
- 
-Check the entries:
+Check the entries. The root token is in the Vault project folder (here `../vault`):
  
 ```bash
-docker exec vault vault kv list secret/dagster-dbt
+docker exec -e VAULT_TOKEN="$(cat ../vault/.vault/root.token)" vault vault kv list secret/dagster-dbt
 ```
  
-You should see `dwh` and `postgres`.
+You should see `postgres-dagster` and `postgres-dwh`.
  
 ## 4. First start from zero
  
@@ -173,19 +173,22 @@ kubectl get pods -n external-secrets
 kubectl get crd | grep external-secrets.io
 ```
  
-### Step 5. Create the namespace and the Vault token
+### Step 5. Create the namespace and the Vault AppRole Secret
  
-The operator needs a Vault token to read the secrets. Put it in a normal Kubernetes Secret. Do not save this Secret in git or in the Helm chart.
+The operator logs in to Vault with the AppRole `dagster-dbt`. The Vault project creates this role and saves its `role_id` and `secret_id` in `.vault/approle/dagster-dbt/`. Put them in a normal Kubernetes Secret. Do not save this Secret in git or in the Helm chart.
  
 ```bash
 kubectl create namespace dagster-dbt
-kubectl create secret generic vault-token -n dagster-dbt \
-  --from-literal=token=<your-vault-token>
+kubectl create secret generic vault-approle -n dagster-dbt \
+  --from-file=role-id=../vault/.vault/approle/dagster-dbt/role_id \
+  --from-file=secret-id=../vault/.vault/approle/dagster-dbt/secret_id
 ```
  
-In Vault dev mode, the token is the value of `VAULT_DEV_ROOT_TOKEN_ID` from the Vault compose file.
+The paths expect the Vault project in `../vault`. Change them if it is in another folder.
+
+If the Vault data is created again from zero, the role gets a new `role_id` and `secret_id`. Delete this Secret and create it again.
  
-This one secret is the only thing you create by hand. It opens the door to all the others.
+This one secret is the only thing you create by hand. It lets the operator read all the others.
  
 ### Step 6. Build and install
 
@@ -434,14 +437,14 @@ Check these things in order:
  
 Run `kubectl describe secretstore vault -n dagster-dbt`. Common reasons:
  
-- The Secret `vault-token` does not exist in the namespace `dagster-dbt`.
+- The Secret `vault-approle` does not exist in the namespace `dagster-dbt`, or its `role-id` and `secret-id` are old. Create it again (Step 5).
 - The Vault container is not running, or the node is not in the network `secrets-net`.
 - The KV engine is not mounted at `secret/`.
 ### An ExternalSecret has an error
  
 Run `kubectl describe externalsecret <name> -n dagster-dbt`. Common reasons:
  
-- The entry or a key does not exist in the secret store. Dev Vault loses its data after a restart, so load the secrets again.
+- The entry or a key does not exist in Vault. Compare the paths in `externalSecrets.secrets` in `values.yaml` with section 3.
 - A Secret with the same name already exists and belongs to something else.
 To ask the operator to try again now:
  
