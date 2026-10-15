@@ -52,7 +52,7 @@ Optional: k9s (a terminal UI for Kubernetes).
 You also need two other Docker Compose projects, outside this repository:
  
 - The DWH project. It creates the Docker network `data-platform-net`.
-- The Vault project. It creates the Docker network `secrets-net`.
+- The Vault project. It uses the Docker network `secrets-net`. Create it once with `docker network create secrets-net`.
 
 ## 3. Secrets that must exist
  
