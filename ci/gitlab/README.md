@@ -18,17 +18,16 @@ Edit `ci/gitlab/pipeline.yml`, not the root file.
 
 A pipeline is one run of all checks for one commit. It has stages, and every stage has jobs.
 
-- Stages run one after another: `lint` → `validate` → `build`.
+- Stages run one after another: `lint` → `validate` → `build` → `scan`.
 - Jobs in the same stage run at the same time.
 - If a job fails, the next stages do not start.
 - Every job runs in a new, empty container. GitLab clones the repository into it, runs the commands and deletes the container. Files from one job are not visible in another job, unless they are saved as `artifacts` or `cache`.
 
 ```
-lint            validate                   build
-────            ────────                   ─────
-┌ ruff ┐        ┌ dbt-parse           ┐
-└ helm ┘ ──►    └ dagster-definitions ┘ ──► ┌ build-dagster-user-code
-                                            └ build-dbt-docs
+lint            validate                   build                        scan
+────            ────────                   ─────                        ────
+┌ ruff ┐        ┌ dbt-parse           ┐    ┌ build-dagster-user-code ┐    ┌ trivy-dagster-user-code
+└ helm ┘ ──►    └ dagster-definitions ┘ ──► └ build-dbt-docs          ┘ ──► └ trivy-dbt-docs
 ```
 
 ### lint
@@ -50,14 +49,23 @@ The Python jobs install `ci/docker/requirements.txt`. The pip downloads are cach
 
 The build runs in docker-in-docker: the job container has the `docker` client, and a second container (the `dind` service) runs the Docker daemon. The build context is the repository root, like in `ci/docker`. The images are pushed to the Container Registry.
 
+### scan
+
+- `trivy-dagster-user-code` – scans the `dagster-user-code` image.
+- `trivy-dbt-docs` – scans the `dbt-docs-image` image.
+
+Trivy pulls the image that the build pushed (`<short sha>` on `main`, `vX.Y.Z` on a release) and checks the system packages and the Python libraries for known vulnerabilities (CVE). It also looks for secrets in the image. It reports only `HIGH` and `CRITICAL` vulnerabilities that already have a fix (`--ignore-unfixed`).
+
+The scan is in soft mode (`allow_failure: true`). If Trivy finds something, the job is orange and the pipeline stays green. Open the job log to see the list. Remove `allow_failure` when the images are clean, then new vulnerabilities block the pipeline.
+
 ## 3. When the pipeline runs
 
 - Push to any branch – lint and validate.
-- Push to `main` – lint, validate and build.
-- Tag `vX.Y.Z` (for example `v1.1.0`) – lint, validate and build.
+- Push to `main` – lint, validate, build and scan.
+- Tag `vX.Y.Z` (for example `v1.1.0`) – lint, validate, build and scan.
 - Other tags – lint and validate.
 
-The build jobs use the most compute minutes, so they run only on `main` and on release tags.
+The build and scan jobs use the most compute minutes, so they run only on `main` and on release tags.
 
 The pipeline has no `workflow` block, so GitLab uses its default rules. They are right for pushing to `main`. If you start to work with merge requests, add the `workflow` rules from the GitLab template `Workflows/MergeRequest-Pipelines`. Without them, a push to a branch with an open merge request does not get a merge request pipeline.
 
@@ -120,5 +128,4 @@ Build → Pipelines → **Run pipeline**, choose the branch.
 
 - **Deploy.** gitlab.com cannot reach the local kind cluster. The plan: a server with k3s, the GitLab Agent for Kubernetes in the cluster (it connects to GitLab by itself, so no ports are open), and a `deploy` stage with `helm upgrade --set ...:<tag>`.
 - **Tests.** `dbt build --empty` and dbt unit tests on a temporary Postgres (a `services:` container, like `dind`), and pytest for the Python code. dbt data tests run in production, in Dagster, not in CI.
-- **Image scanning.** Trivy for the built images.
 - **Merge request flow.** The `workflow` rules (section 3) and a protected `main`.
