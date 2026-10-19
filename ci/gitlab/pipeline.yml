@@ -1,8 +1,8 @@
 # GitLab CI/CD pipeline of the dagster-dbt project.
 # Loaded from the root .gitlab-ci.yml. See ci/gitlab/README.md.
 #
-# lint     -> ruff
-# validate -> dbt-parse, dagster-validate, helm-lint (in parallel)
+# lint     -> ruff, helm-lint (in parallel)
+# validate -> dbt-parse, dagster-validate (in parallel)
 # build    -> build-dagster-user-code, build-dbt-docs (only on main and tags vX.Y.Z)
 
 stages:
@@ -68,6 +68,15 @@ ruff:
     # Soft mode: syntax errors, bad comparisons, return/break outside place, undefined names
     - ruff check app/ --select E9,F63,F7,F82
 
+helm-lint:
+  stage: lint
+  image:
+    name: alpine/helm:3.22.0
+    entrypoint: [""]   # the image starts helm by default, GitLab needs a shell
+  script:
+    - helm lint "$CHART"
+    - helm lint "$CHART" -f "$CHART/values-dev.yaml"
+
 # ---------- validate ----------
 
 dbt-parse:
@@ -94,22 +103,6 @@ dagster-validate:
     - mkdir -p "$DAGSTER_HOME"
     - cd app
     - dagster definitions validate -m dagster_easy.definitions
-
-helm-lint:
-  stage: validate
-  image:
-    name: alpine/helm:3.22.0
-    entrypoint: [""]   # the image starts helm by default, GitLab needs a shell
-  script:
-    - helm lint "$CHART"
-    - helm lint "$CHART" -f "$CHART/values-dev.yaml"
-    - helm template dagster-dbt "$CHART" -n dagster-dbt > rendered-prod.yaml
-    - helm template dagster-dbt "$CHART" -n dagster-dbt -f "$CHART/values-dev.yaml" > rendered-dev.yaml
-  artifacts:
-    paths:
-      - rendered-prod.yaml
-      - rendered-dev.yaml
-    expire_in: 1 week
 
 # ---------- build ----------
 

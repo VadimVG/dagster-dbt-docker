@@ -24,22 +24,22 @@ A pipeline is one run of all checks for one commit. It has stages, and every sta
 - Every job runs in a new, empty container. GitLab clones the repository into it, runs the commands and deletes the container. Files from one job are not visible in another job, unless they are saved as `artifacts` or `cache`.
 
 ```
-lint          validate                build
-────          ────────                ─────
-              ┌ dbt-parse        ┐
-ruff    ──►   ├ dagster-validate ├ ──► ┌ build-dagster-user-code
-              └ helm-lint        ┘     └ build-dbt-docs
+lint            validate                build
+────            ────────                ─────
+┌ ruff      ┐   ┌ dbt-parse        ┐
+└ helm-lint ┘ ► └ dagster-validate ┘ ──► ┌ build-dagster-user-code
+                                         └ build-dbt-docs
 ```
 
 ### lint
 
 - `ruff` – checks `app/` for real errors only: syntax errors, bad comparisons, `return`/`break` in the wrong place, undefined names (rules `E9,F63,F7,F82`). Style is not checked yet. It does not install the project dependencies, so it is fast.
+- `helm-lint` – runs `helm lint` for `ci/k8s/dagster-dbt-chart`, with `values.yaml` and with `values-dev.yaml`. It renders the templates and fails on errors in them.
 
 ### validate
 
 - `dbt-parse` – runs `dbt parse` in `app/dbt/projects`. It checks the Jinja in models, `ref()`, macros and `dbt_project.yml`. It does not connect to the DWH and does not check the SQL itself. The DWH_* variables have fake values, because `profiles.yml` reads them with `env_var()` in every dbt command.
 - `dagster-validate` – runs `dagster definitions validate`. It loads `app/dagster_easy/definitions.py` like the user code server does: imports, repositories, jobs, assets, resources. It uses an empty `DAGSTER_HOME`, not `app/dagster_home/`, because that one needs the Dagster Postgres.
-- `helm-lint` – runs `helm lint` and `helm template` for `ci/k8s/dagster-dbt-chart`, with `values.yaml` and with `values-dev.yaml`. The rendered manifests are saved as job artifacts for one week. Open the job page and click **Browse** to see them.
 
 The Python jobs install `ci/docker/requirements.txt`. The pip downloads are cached. The cache is used again until `requirements.txt` changes.
 
