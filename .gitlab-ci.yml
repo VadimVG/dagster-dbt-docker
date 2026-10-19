@@ -1,0 +1,4 @@
+# GitLab reads only this file in the repository root.
+# The pipeline itself lives in ci/gitlab/pipeline.yml, see ci/gitlab/README.md.
+include:
+  - local: ci/gitlab/pipeline.yml
