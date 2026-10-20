@@ -1,7 +1,7 @@
 # GitLab CI/CD pipeline of the dagster-dbt project.
 # Loaded from the root .gitlab-ci.yml. See ci/gitlab/README.md.
 #
-# lint     -> ruff, helm, gitleaks (in parallel)
+# lint     -> ruff, helm, gitleaks, semgrep (in parallel)
 # validate -> dbt-parse, dagster-definitions (in parallel)
 # build    -> build-dagster-user-code, build-dbt-docs (only on main and tags vX.Y.Z)
 # scan     -> trivy-dagster-user-code, trivy-dbt-docs (only on main and tags vX.Y.Z)
@@ -114,6 +114,17 @@ gitleaks:
     # Only the current files, not the git history.
     # --redact hides the found secrets in the job log (the log can be public).
     - gitleaks dir --redact --verbose --exit-code 1 .
+
+semgrep:
+  stage: lint
+  image:
+    name: semgrep/semgrep:1.179.0
+    entrypoint: [""]   # same as the other tool images, GitLab needs a shell
+  allow_failure: true  # soft mode: findings make the job orange, the pipeline stays green
+  script:
+    # p/python: security rules for Python from the Semgrep Registry.
+    # --error: exit code 1 on findings (without it Semgrep always exits with 0).
+    - semgrep scan --config p/python --metrics=off --error app/
 
 # ---------- validate ----------
 

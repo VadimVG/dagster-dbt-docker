@@ -28,7 +28,8 @@ lint                validate                   build                        scan
 ────                ────────                   ─────                        ────
 ┌ ruff     ┐        ┌ dbt-parse           ┐    ┌ build-dagster-user-code ┐    ┌ trivy-dagster-user-code
 ├ helm     ├ ──►    └ dagster-definitions ┘ ──► └ build-dbt-docs          ┘ ──► └ trivy-dbt-docs
-└ gitleaks ┘
+├ gitleaks ┤
+└ semgrep  ┘
 ```
 
 ### lint
@@ -36,6 +37,7 @@ lint                validate                   build                        scan
 - `ruff` – checks `app/` for real errors only: syntax errors, bad comparisons, `return`/`break` in the wrong place, undefined names (rules `E9,F63,F7,F82`). Style is not checked yet. It does not install the project dependencies, so it is fast.
 - `helm` – runs `helm lint` for `ci/k8s/dagster-dbt-chart`, with `values.yaml` and with `values-dev.yaml`. It renders the templates and fails on errors in them.
 - `gitleaks` – looks for secrets (tokens, keys, passwords in connection strings) in the current files of the repository. It does not scan the git history. Found secrets are hidden in the log (`--redact`). The job fails on any finding.
+- `semgrep` – static security analysis (SAST) of `app/` with the `p/python` rules from the Semgrep Registry: SQL built from strings, `eval`, `pickle`, `subprocess`, weak crypto and more. It is in soft mode (`allow_failure: true`): findings make the job orange. To mark a checked false positive, add `# nosemgrep: <rule-id>` with a reason to the line.
 
 ### validate
 
