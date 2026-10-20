@@ -1,7 +1,7 @@
 # GitLab CI/CD pipeline of the dagster-dbt project.
 # Loaded from the root .gitlab-ci.yml. See ci/gitlab/README.md.
 #
-# lint     -> ruff, helm (in parallel)
+# lint     -> ruff, helm, gitleaks (in parallel)
 # validate -> dbt-parse, dagster-definitions (in parallel)
 # build    -> build-dagster-user-code, build-dbt-docs (only on main and tags vX.Y.Z)
 # scan     -> trivy-dagster-user-code, trivy-dbt-docs (only on main and tags vX.Y.Z)
@@ -104,6 +104,16 @@ helm:
   script:
     - helm lint "$CHART"
     - helm lint "$CHART" -f "$CHART/values-dev.yaml"
+
+gitleaks:
+  stage: lint
+  image:
+    name: zricethezav/gitleaks:v8.30.1
+    entrypoint: [""]   # the image starts gitleaks by default, GitLab needs a shell
+  script:
+    # Only the current files, not the git history.
+    # --redact hides the found secrets in the job log (the log can be public).
+    - gitleaks dir --redact --verbose --exit-code 1 .
 
 # ---------- validate ----------
 

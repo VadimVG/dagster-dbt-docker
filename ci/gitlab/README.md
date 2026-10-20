@@ -24,16 +24,18 @@ A pipeline is one run of all checks for one commit. It has stages, and every sta
 - Every job runs in a new, empty container. GitLab clones the repository into it, runs the commands and deletes the container. Files from one job are not visible in another job, unless they are saved as `artifacts` or `cache`.
 
 ```
-lint            validate                   build                        scan
-────            ────────                   ─────                        ────
-┌ ruff ┐        ┌ dbt-parse           ┐    ┌ build-dagster-user-code ┐    ┌ trivy-dagster-user-code
-└ helm ┘ ──►    └ dagster-definitions ┘ ──► └ build-dbt-docs          ┘ ──► └ trivy-dbt-docs
+lint                validate                   build                        scan
+────                ────────                   ─────                        ────
+┌ ruff     ┐        ┌ dbt-parse           ┐    ┌ build-dagster-user-code ┐    ┌ trivy-dagster-user-code
+├ helm     ├ ──►    └ dagster-definitions ┘ ──► └ build-dbt-docs          ┘ ──► └ trivy-dbt-docs
+└ gitleaks ┘
 ```
 
 ### lint
 
 - `ruff` – checks `app/` for real errors only: syntax errors, bad comparisons, `return`/`break` in the wrong place, undefined names (rules `E9,F63,F7,F82`). Style is not checked yet. It does not install the project dependencies, so it is fast.
 - `helm` – runs `helm lint` for `ci/k8s/dagster-dbt-chart`, with `values.yaml` and with `values-dev.yaml`. It renders the templates and fails on errors in them.
+- `gitleaks` – looks for secrets (tokens, keys, passwords in connection strings) in the current files of the repository. It does not scan the git history. Found secrets are hidden in the log (`--redact`). The job fails on any finding.
 
 ### validate
 
