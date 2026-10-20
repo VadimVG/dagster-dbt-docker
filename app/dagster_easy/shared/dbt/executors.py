@@ -5,7 +5,7 @@ import shutil
 from pathlib import Path
 from typing import List, Dict, Optional
 from collections import defaultdict
-from dagster_easy.project import (
+from dagster_easy.shared.dbt.project import (
     dbt_project
 )
 

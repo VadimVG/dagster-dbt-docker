@@ -19,11 +19,36 @@ Inside the cluster (namespace `dagster-dbt`):
 - Postgres (Dagster metadata database)
 - Dagster webserver
 - Dagster daemon (takes runs from the queue and creates a Job for each run)
-- Dagster user code (gRPC server with the pipelines)
+- Dagster user code: one gRPC server (Deployment and Service `dagster-user-code-<name>`) for each code location
 - dbt docs (web server) and a Job that builds the docs
 - Run pods `dagster-run-<run_id>`. They exist only while a run works, plus 30 seconds.
 
 External Secrets Operator runs in its own namespace, `external-secrets`.
+
+### Code locations
+
+The code locations are listed in `dagster.codeLocations` in `values.yaml`:
+
+```yaml
+codeLocations:
+  - name: main
+    module: dagster_easy.code_locations.main.definitions
+  - name: test-examples
+    module: dagster_easy.code_locations.test_examples.definitions
+```
+
+- `name` is the name of the location in the UI and a part of the Deployment and Service names (`dagster-user-code-main`).
+- `module` is the Python module that the gRPC server loads (`dagster api grpc -m <module>`). It is the path of `definitions.py` inside `app/`, with dots instead of slashes.
+
+The chart builds everything from this list: a Deployment and a Service for each location, and `workspace.yaml`, which tells the webserver and the daemon where the servers are. All servers listen on port 4000. They do not conflict, because each pod has its own IP address.
+
+To add a code location:
+
+1. Create `app/dagster_easy/code_locations/<name>/definitions.py`.
+2. Add an entry to `dagster.codeLocations`.
+3. Run `helm upgrade` and restart the webserver and the daemon (see "Change dagster.yaml or workspace.yaml").
+
+A code location imports only its own package and `dagster_easy.shared`, never another location.
 
 ### How a run works
 
@@ -229,7 +254,7 @@ Check that the code comes from the image:
 
 ```bash
 kubectl get deploy -n dagster-dbt -o yaml | grep -c hostPath    # 0
-kubectl exec -n dagster-dbt deploy/dagster-user-code -- sh -c 'grep " /opt/dagster/app " /proc/mounts || echo "not mounted, code from image"'
+kubectl exec -n dagster-dbt deploy/dagster-user-code-main -- sh -c 'grep " /opt/dagster/app " /proc/mounts || echo "not mounted, code from image"'
 ```
 
 Each run pod asks for 500m CPU and 1Gi memory. On a laptop, start the jobs one by one.
@@ -320,11 +345,13 @@ helm rollback dagster-dbt <revision> -n dagster-dbt
  
 ### Change the Python code
  
-The code is mounted from your disk, so you do not need to build the image. Every new run pod loads the code again, so you only need to restart the code server:
+The code is mounted from your disk, so you do not need to build the image. Every new run pod loads the code again, so you only need to restart the code servers. All of them have the label `component=dagster-user-code`:
  
 ```bash
-kubectl rollout restart deployment/dagster-user-code -n dagster-dbt
+kubectl rollout restart deployment -l component=dagster-user-code -n dagster-dbt
 ```
+
+To restart only one code location, use its Deployment name, for example `deployment/dagster-user-code-test-examples`.
 
 If the UI still shows an error for the code location after the restart, click **Reload** in **Deployment → Code locations**.
  

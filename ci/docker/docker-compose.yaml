@@ -1,5 +1,26 @@
 name: dagster-dbt
 
+# Common settings of the code servers: one service per code location, they differ only in the module
+x-dagster-user-code: &dagster-user-code
+  build:
+    context: ../..
+    dockerfile: ci/docker/Dockerfile
+  image: dagster-image
+  environment:
+    DAGSTER_BUILD_TYPE: docker
+    PG_USERNAME: ${PG_USERNAME}
+    PG_PASSWORD: ${PG_PASSWORD}
+    PG_HOST: ${PG_HOST}
+    PG_DB: ${PG_DB}
+    PG_PORT: ${PG_PORT}
+    CELERY_BROKER_URL: ${CELERY_BROKER_URL}
+    CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
+  depends_on:
+    dbt-docs-and-prepare-project:
+      condition: service_started
+  volumes:
+    - ../../app/:/opt/dagster/app/
+
 services:
 
   # This service runs the postgres database used by dagster to store launches, schedules, and event logs.
@@ -80,28 +101,16 @@ services:
     volumes:
       - ../../app/dbt/:/opt/dagster/app/dbt/
 
-  # This service runs a code server that downloads custom code.
-  dagster-user-code:
-    container_name: dagster-user-code
-    build:
-      context: ../..
-      dockerfile: ci/docker/Dockerfile
-    image: dagster-image
-    entrypoint: dagster api grpc -h 0.0.0.0 -p 4000 -f dagster_easy/definitions.py
-    environment:
-      DAGSTER_BUILD_TYPE: docker
-      PG_USERNAME: ${PG_USERNAME}
-      PG_PASSWORD: ${PG_PASSWORD}
-      PG_HOST: ${PG_HOST}
-      PG_DB: ${PG_DB}
-      PG_PORT: ${PG_PORT}
-      CELERY_BROKER_URL: ${CELERY_BROKER_URL}
-      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
-    depends_on:
-      dbt-docs-and-prepare-project:
-        condition: service_started
-    volumes:
-      - ../../app/:/opt/dagster/app/
+  # Code servers: each one serves one code location over gRPC (listed in app/dagster_home/workspace.yaml).
+  dagster-user-code-main:
+    <<: *dagster-user-code
+    container_name: dagster-user-code-main
+    entrypoint: dagster api grpc -h 0.0.0.0 -p 4000 -m dagster_easy.code_locations.main.definitions
+
+  dagster-user-code-test-examples:
+    <<: *dagster-user-code
+    container_name: dagster-user-code-test-examples
+    entrypoint: dagster api grpc -h 0.0.0.0 -p 4000 -m dagster_easy.code_locations.test_examples.definitions
 
   # This service is running under a dagster web server.
   dagster-webserver:
@@ -136,7 +145,9 @@ services:
     depends_on:
       dagster-postgresql:
         condition: service_healthy
-      dagster-user-code:
+      dagster-user-code-main:
+        condition: service_started
+      dagster-user-code-test-examples:
         condition: service_started
 
   # This service starts the dagster-daemon process.
@@ -164,7 +175,9 @@ services:
     depends_on:
       dagster-postgresql:
         condition: service_healthy
-      dagster-user-code:
+      dagster-user-code-main:
+        condition: service_started
+      dagster-user-code-test-examples:
         condition: service_started
 
   dagster-celery-executor:

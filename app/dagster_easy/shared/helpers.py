@@ -1,12 +1,12 @@
 import dagster as dg
 import os
-import pytz
 from datetime import datetime
 from enum import StrEnum
+from zoneinfo import ZoneInfo
 
 
 def get_current_moscow_datetime() -> datetime:
-    return datetime.now(pytz.timezone('Europe/Moscow'))\
+    return datetime.now(ZoneInfo('Europe/Moscow'))\
             .replace(microsecond=0, tzinfo=None)
 
 

@@ -7,8 +7,8 @@ from dagster_dbt import (
 
 import time
 
-from dagster_easy.utils.dbt.executors import execute_dbt_and_cleanup
-from dagster_easy.utils.helpers import DagsterAssetKind
+from dagster_easy.shared.dbt.executors import execute_dbt_and_cleanup
+from dagster_easy.shared.helpers import DagsterAssetKind
 
 
 

@@ -1,12 +1,17 @@
+{{- range .Values.dagster.codeLocations }}
+---
 apiVersion: v1
 kind: Service
 metadata:
-  name: dagster-user-code
-  namespace: {{ .Values.namespace }}
+  name: dagster-user-code-{{ .name }}
+  namespace: {{ $.Values.namespace }}
+  labels:
+    component: dagster-user-code
 spec:
   selector:
-    app: dagster-user-code
+    app: dagster-user-code-{{ .name }}
   ports:
     - name: grpc
       port: 4000
       targetPort: grpc
+{{- end }}

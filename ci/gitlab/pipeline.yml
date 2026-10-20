@@ -150,7 +150,8 @@ dagster-definitions:
   script:
     - mkdir -p "$DAGSTER_HOME"
     - cd app
-    - dagster definitions validate -m dagster_easy.definitions
+    - dagster definitions validate -m dagster_easy.code_locations.main.definitions
+    - dagster definitions validate -m dagster_easy.code_locations.test_examples.definitions
 
 # ---------- build ----------
 

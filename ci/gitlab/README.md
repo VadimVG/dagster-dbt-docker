@@ -42,7 +42,7 @@ lint                validate                   build                        scan
 ### validate
 
 - `dbt-parse` – runs `dbt parse` in `app/dbt/projects`. It checks the Jinja in models, `ref()`, macros and `dbt_project.yml`. It does not connect to the DWH and does not check the SQL itself. The DWH_* variables have fake values, because `profiles.yml` reads them with `env_var()` in every dbt command.
-- `dagster-definitions` – runs `dagster definitions validate`. It loads `app/dagster_easy/definitions.py` like the user code server does: imports, repositories, jobs, assets, resources. It uses an empty `DAGSTER_HOME`, not `app/dagster_home/`, because that one needs the Dagster Postgres.
+- `dagster-definitions` – runs `dagster definitions validate` once for each code location (`dagster_easy.code_locations.<name>.definitions`). It loads the location like its code server does: imports, repositories, jobs, assets, resources. It uses an empty `DAGSTER_HOME`, not `app/dagster_home/`, because that one needs the Dagster Postgres.
 
 The Python jobs install `ci/docker/requirements.txt`. The pip downloads are cached. The cache is used again until `requirements.txt` changes.
 

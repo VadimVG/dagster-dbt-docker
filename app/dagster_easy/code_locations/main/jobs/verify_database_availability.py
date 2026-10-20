@@ -1,6 +1,6 @@
 import dagster as dg
-from dagster_easy.utils.database.postgres import get_pg_connect
-from dagster_easy.utils.helpers import DagsterAssetKind
+from dagster_easy.shared.database.postgres import get_pg_connect
+from dagster_easy.shared.helpers import DagsterAssetKind
 
 
 @dg.asset(

@@ -64,7 +64,9 @@ The user and password in `CELERY_BROKER_URL` must be the same as `DEFAULT_USER` 
 
 Dagster reads its instance config from `app/dagster_home/dagster.yaml` and `app/dagster_home/workspace.yaml`. The Kubernetes chart has its own copies in `ci/k8s/dagster-dbt-chart/files/`. They are different on purpose: Compose uses `DefaultRunLauncher`, the cluster uses `K8sRunLauncher`. After you change these files, run `docker compose restart`.
 
-Compose runs the job steps on Celery. The executor is chosen by the env var `DAGSTER_BUILD_TYPE`. The Compose file sets `DAGSTER_BUILD_TYPE: docker` for `dagster-user-code` and `dagster-celery-executor`. Without this variable, the code uses the multiprocess executor (the Kubernetes setup), and the Celery worker gets no tasks.
+Compose runs the job steps on Celery. The executor is chosen by the env var `DAGSTER_BUILD_TYPE`. The Compose file sets `DAGSTER_BUILD_TYPE: docker` for the code servers (`dagster-user-code-*`) and `dagster-celery-executor`. Without this variable, the code uses the multiprocess executor (the Kubernetes setup), and the Celery worker gets no tasks.
+
+There is one code server for each code location: `dagster-user-code-main` and `dagster-user-code-test-examples`. Their common settings are in the `x-dagster-user-code` block at the top of the Compose file, and each service sets only its name and the module to load. To add a code location, add a service like these and an entry in `app/dagster_home/workspace.yaml`.
 
 ## 3. Start
 
@@ -89,7 +91,7 @@ The images also contain a copy of `app/`, for the production mode in Kubernetes.
 After a change in the Python code:
 
 ```bash
-docker compose restart dagster-user-code dagster-celery-executor
+docker compose restart dagster-user-code-main dagster-user-code-test-examples dagster-celery-executor
 ```
 
 After a change in the dbt models (to build `manifest.json` again):

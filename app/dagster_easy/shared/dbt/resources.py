@@ -1,6 +1,6 @@
 from dagster_dbt import DbtCliResource
 
-from dagster_easy.project import dbt_project
+from dagster_easy.shared.dbt.project import dbt_project
 
 
 dbt_resource = DbtCliResource(

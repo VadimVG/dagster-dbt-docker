@@ -23,6 +23,12 @@ postgres:
 dagster:
   image: dagster-user-code:v1.0.0
   serviceAccountName: dagster
+  # One gRPC server (Deployment + Service) per code location
+  codeLocations:
+    - name: main
+      module: dagster_easy.code_locations.main.definitions
+    - name: test-examples
+      module: dagster_easy.code_locations.test_examples.definitions
   runLauncher:
     ttlSecondsAfterFinished: 30
     resources:

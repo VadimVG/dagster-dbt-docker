@@ -1,17 +1,18 @@
 import dagster as dg
 
-from dagster_easy.resources.resources import dbt_resource
-from dagster_easy.utils.helpers import get_executor
-from dagster_easy.test_examples.jobs import (
+from dagster_easy.shared.dbt.resources import dbt_resource
+from dagster_easy.shared.helpers import get_executor
+from dagster_easy.code_locations.test_examples.jobs import (
     asset_example,
     op_example,
     dynamic_output_op_example,
 )
 
 
-test_examples = dg.create_repository_using_definitions_args(
-    name = "test_examples",
+import warnings
+warnings.filterwarnings("ignore", category=dg.ExperimentalWarning)
 
+defs = dg.Definitions(
     assets=dg.load_assets_from_modules([
         asset_example,
         op_example,
@@ -33,7 +34,6 @@ test_examples = dg.create_repository_using_definitions_args(
     resources={
         "dbt": dbt_resource,
     },
-    
+
     executor=get_executor(),
-    
 )

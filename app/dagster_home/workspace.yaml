@@ -1,5 +1,9 @@
 load_from:
   - grpc_server:
-      host: dagster-user-code
+      host: dagster-user-code-main
       port: 4000
-      location_name: "Main definition"
+      location_name: main
+  - grpc_server:
+      host: dagster-user-code-test-examples
+      port: 4000
+      location_name: test-examples
