@@ -120,7 +120,6 @@ semgrep:
   image:
     name: semgrep/semgrep:1.179.0
     entrypoint: [""]   # same as the other tool images, GitLab needs a shell
-  allow_failure: true  # soft mode: findings make the job orange, the pipeline stays green
   script:
     # p/python: security rules for Python from the Semgrep Registry.
     # --error: exit code 1 on findings (without it Semgrep always exits with 0).
