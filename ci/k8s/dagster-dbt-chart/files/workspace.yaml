@@ -1,7 +1,7 @@
 load_from:
-{{- range .Values.dagster.codeLocations }}
+{{- range $name, $_ := .Values.dagster.codeLocations }}
 - grpc_server:
-    host: dagster-user-code-{{ .name }}
+    host: dagster-user-code-{{ $name }}
     port: 4000
-    location_name: {{ .name }}
+    location_name: {{ $name }}
 {{- end }}

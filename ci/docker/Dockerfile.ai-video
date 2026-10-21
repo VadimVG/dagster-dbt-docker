@@ -1,0 +1,19 @@
+FROM python:3.11-slim
+
+ENV DAGSTER_HOME=/opt/dagster/app/dagster_home/
+
+# ffmpeg for video assembly, a font with Cyrillic for burned-in subtitles
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /tmp
+COPY ci/docker/requirements-ai-video.txt .
+RUN pip3 install --no-cache-dir -r /tmp/requirements-ai-video.txt
+
+RUN mkdir -p $DAGSTER_HOME
+
+# Only the shared code and this code location, not the other locations
+COPY app/dagster_easy/shared/ /opt/dagster/app/dagster_easy/shared/
+COPY app/dagster_easy/code_locations/ai_video/ /opt/dagster/app/dagster_easy/code_locations/ai_video/
+WORKDIR /opt/dagster/app

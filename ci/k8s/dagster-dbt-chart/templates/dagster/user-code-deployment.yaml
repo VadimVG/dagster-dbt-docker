@@ -1,9 +1,20 @@
-{{- range .Values.dagster.codeLocations }}
+{{- range $name, $loc := .Values.dagster.codeLocations }}
+{{- $image := $loc.image | default $.Values.dagster.image }}
+{{- /* Container context of the location: K8sRunLauncher merges it into the run pods
+       of this location, on top of the launcher config in dagster.yaml */}}
+{{- $runEnvVars := list }}
+{{- range $key, $value := $loc.env }}
+{{- $runEnvVars = append $runEnvVars (printf "%s=%v" $key $value) }}
+{{- end }}
+{{- $k8sContext := dict "env_secrets" ($loc.envSecrets | default list) "env_vars" $runEnvVars }}
+{{- with $loc.runResources }}
+{{- $_ := set $k8sContext "run_k8s_config" (dict "container_config" (dict "resources" .)) }}
+{{- end }}
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: dagster-user-code-{{ .name }}
+  name: dagster-user-code-{{ $name }}
   namespace: {{ $.Values.namespace }}
   labels:
     component: dagster-user-code
@@ -11,38 +22,54 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: dagster-user-code-{{ .name }}
+      app: dagster-user-code-{{ $name }}
   template:
     metadata:
       labels:
-        app: dagster-user-code-{{ .name }}
+        app: dagster-user-code-{{ $name }}
         component: dagster-user-code
     spec:
       containers:
         - name: dagster-user-code
-          image: {{ $.Values.dagster.image }}
+          image: {{ $image }}
           imagePullPolicy: IfNotPresent
-          command: ["dagster", "api", "grpc", "-h", "0.0.0.0", "-p", "4000", "-m", {{ .module | quote }}]
+          command: ["dagster", "api", "grpc", "-h", "0.0.0.0", "-p", "4000", "-m", {{ $loc.module | quote }}]
           ports:
             - name: grpc
               containerPort: 4000
           env:
             - name: DAGSTER_BUILD_TYPE
               value: k8s
+            # Run pods of this location start from the same image as its code server
+            - name: DAGSTER_CONTAINER_IMAGE
+              value: {{ $image | quote }}
+            - name: DAGSTER_CONTAINER_CONTEXT
+              value: {{ dict "k8s" $k8sContext | toJson | quote }}
+            {{- range $key, $value := $loc.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
           envFrom:
             - secretRef:
                 name: postgres-credentials
+            {{- range $loc.envSecrets }}
+            - secretRef:
+                name: {{ . }}
+            {{- end }}
           {{- if $.Values.dagster.hostPath.enabled }}
           volumeMounts:
             - name: app-code
               mountPath: /opt/dagster/app
           {{- end }}
+          # Native gRPC health check (kubelet, no process in the pod). The code server sets
+          # the service "DagsterApi" to SERVING once the code is loaded.
           readinessProbe:
-            tcpSocket:
+            grpc:
               port: 4000
-            initialDelaySeconds: 10
-            periodSeconds: 10
-            timeoutSeconds: 5
+              service: DagsterApi
+            initialDelaySeconds: 3
+            periodSeconds: 3
+            timeoutSeconds: 2
           resources:
             {{- toYaml $.Values.dagster.userCode.resources | nindent 12 }}
       {{- if $.Values.dagster.hostPath.enabled }}

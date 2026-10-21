@@ -27,25 +27,48 @@ External Secrets Operator runs in its own namespace, `external-secrets`.
 
 ### Code locations
 
-The code locations are listed in `dagster.codeLocations` in `values.yaml`:
+The code locations are listed in `dagster.codeLocations` in `values.yaml`. It is a map: the key is the location name.
 
 ```yaml
 codeLocations:
-  - name: main
+  main:
     module: dagster_easy.code_locations.main.definitions
-  - name: test-examples
+  test-examples:
     module: dagster_easy.code_locations.test_examples.definitions
+  ai-video:
+    module: dagster_easy.code_locations.ai_video.definitions
+    image: ai-video:v1.0.0
+    envSecrets: [s3-credentials]
+    env:
+      AWS_ENDPOINT_URL_S3: http://object-storage:8333
+      AWS_DEFAULT_REGION: us-east-1
+    runResources:
+      requests: {cpu: 500m, memory: 1Gi}
+      limits: {cpu: "2", memory: 2Gi}
 ```
 
-- `name` is the name of the location in the UI and a part of the Deployment and Service names (`dagster-user-code-main`).
-- `module` is the Python module that the gRPC server loads (`dagster api grpc -m <module>`). It is the path of `definitions.py` inside `app/`, with dots instead of slashes.
+- The key (`main`) is the name of the location in the UI and a part of the Deployment and Service names (`dagster-user-code-main`).
+- `module` (required) is the Python module that the gRPC server loads (`dagster api grpc -m <module>`). It is the path of `definitions.py` inside `app/`, with dots instead of slashes.
+- `image` is the image of the code server and of the run pods of this location. Default: `dagster.image`.
+- `envSecrets` are Secrets added to the code server (sensors run there) and to the run pods, besides the global ones from `dagster.yaml`.
+- `env` are plain environment variables for the code server and the run pods.
+- `runResources` are the resources of the run pods of this location. Default: `dagster.runLauncher.resources`.
 
-The chart builds everything from this list: a Deployment and a Service for each location, and `workspace.yaml`, which tells the webserver and the daemon where the servers are. All servers listen on port 4000. They do not conflict, because each pod has its own IP address.
+The chart builds everything from this map: a Deployment and a Service for each location, and `workspace.yaml`, which tells the webserver and the daemon where the servers are. All servers listen on port 4000. They do not conflict, because each pod has its own IP address.
+
+How the run pods get the settings of their location: the Deployment sets two env vars on the code server.
+
+- `DAGSTER_CONTAINER_IMAGE`: the image. `K8sRunLauncher` uses it for the run pods. `job_image` in `dagster.yaml` is only a fallback.
+- `DAGSTER_CONTAINER_CONTEXT`: JSON with `env_secrets`, `env_vars` and the run pod resources. The launcher merges it on top of its own config from `dagster.yaml`: the lists of secrets and env vars are joined, the resources replace the global ones.
+
+So the run pods of `ai-video` get the S3 keys and more memory, and the runs of the other locations do not change.
+
+`codeLocations` is a map and not a list on purpose. Helm merges maps key by key and replaces lists as a whole. With a map, `values-dev.yaml` changes only one field (`codeLocations.ai-video.image: ai-video:latest`) and does not repeat the whole list.
 
 To add a code location:
 
 1. Create `app/dagster_easy/code_locations/<name>/definitions.py`.
-2. Add an entry to `dagster.codeLocations`.
+2. Add an entry to `dagster.codeLocations`. If it needs its own image, also build the image and load it into kind.
 3. Run `helm upgrade` and restart the webserver and the daemon (see "Change dagster.yaml or workspace.yaml").
 
 A code location imports only its own package and `dagster_easy.shared`, never another location.
@@ -74,16 +97,17 @@ Install these tools on your machine:
 
 Optional: k9s (a terminal UI for Kubernetes).
  
-You also need two other Docker Compose projects, outside this repository:
+You also need three other Docker Compose projects, outside this repository:
  
 - The DWH project. It creates the Docker network `data-platform-net`.
 - The Vault project. It uses the Docker network `secrets-net`. Create it once with `docker network create secrets-net`.
+- The object storage project `../obj-storage-seaweedfs` (SeaweedFS, S3 API). It runs in `data-platform-net`. The cluster reaches it through the Service `object-storage` (`dagster.objectStorage` in `values.yaml`), at `http://object-storage:8333`. The pods of a code location get this endpoint from its `env` (`AWS_ENDPOINT_URL_S3`).
 
 ## 3. Secrets that must exist
  
 The app reads its secrets from Vault. It uses the KV version 2 engine, mounted at `secret/`. This guide does not explain how to install Vault.
 
-The operator logs in to Vault with the AppRole `dagster-dbt`. This role can only read entries under `secret/dagster-dbt/`.
+The operator logs in to Vault with the AppRole `dagster-dbt`. This role can read entries under `secret/dagster-dbt/` and one entry of the storage project, `secret/obj-storage-seaweedfs/s3-dagster-dbt`.
  
 Create these two entries. The key names must be exactly the same, because the pods read them as environment variables.
  
@@ -112,6 +136,24 @@ docker exec -e VAULT_TOKEN="$(cat ../vault/.vault/root.token)" vault vault kv li
 ```
  
 You should see `postgres-dagster` and `postgres-dwh`.
+
+The S3 keys are not created here. They belong to the storage project, which reads the same entry to configure its S3 user `dagster-dbt` (see `../obj-storage-seaweedfs/README.md`). The cluster gets them as the Secret `s3-credentials`:
+
+- `secret/obj-storage-seaweedfs/s3-dagster-dbt`
+  - `AWS_ACCESS_KEY_ID`
+  - `AWS_SECRET_ACCESS_KEY`
+
+These are the names that boto3 and the aws cli read from the environment. To change the keys, change this one entry and follow "Change the keys" in the storage project. Nothing has to be copied.
+
+Check the S3 access from the cluster (the bucket `ai-video` is empty at first, so an empty output without errors is OK):
+
+```bash
+kubectl run s3-check -n dagster-dbt --rm -it --restart=Never --image=amazon/aws-cli \
+  --overrides='{"spec":{"containers":[{"name":"s3-check","image":"amazon/aws-cli",
+    "args":["--endpoint-url","http://object-storage:8333","s3","ls","s3://ai-video"],
+    "env":[{"name":"AWS_DEFAULT_REGION","value":"us-east-1"}],
+    "envFrom":[{"secretRef":{"name":"s3-credentials"}}]}]}}'
+```
  
 ## 4. First start from zero
  
@@ -226,7 +268,8 @@ The code is mounted from your disk, so code changes work without a new build.
 ```bash
 docker build -t dagster-user-code:latest -f ci/docker/Dockerfile .
 docker build -t dbt-docs-image:latest -f ci/docker/Dockerfile.dbt .
-kind load docker-image dagster-user-code:latest dbt-docs-image:latest --name dev-1
+docker build -t ai-video:latest -f ci/docker/Dockerfile.ai-video .
+kind load docker-image dagster-user-code:latest dbt-docs-image:latest ai-video:latest --name dev-1
 
 helm install dagster-dbt ci/k8s/dagster-dbt-chart \
   -n dagster-dbt -f ci/k8s/dagster-dbt-chart/values-dev.yaml
@@ -243,7 +286,8 @@ The code is inside the images. After a code change, build the images with a new 
 ```bash
 docker build -t dagster-user-code:v1.0.0 -f ci/docker/Dockerfile .
 docker build -t dbt-docs-image:v1.0.0 -f ci/docker/Dockerfile.dbt .
-kind load docker-image dagster-user-code:v1.0.0 dbt-docs-image:v1.0.0 --name dev-1
+docker build -t ai-video:v1.0.0 -f ci/docker/Dockerfile.ai-video .
+kind load docker-image dagster-user-code:v1.0.0 dbt-docs-image:v1.0.0 ai-video:v1.0.0 --name dev-1
 
 helm install dagster-dbt ci/k8s/dagster-dbt-chart -n dagster-dbt
 ```

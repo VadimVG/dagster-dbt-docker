@@ -3,12 +3,29 @@ externalSecrets:
 
 dagster:
   image: dagster-user-code:latest
+  codeLocations:
+    ai-video:
+      image: ai-video:latest
   hostPath:
     enabled: true
     appPath: /mnt/projects/dagster-dbt-docker/app
   runLauncher:
     resources:
       requests: {cpu: 200m, memory: 512Mi}
+      limits: {cpu: "1", memory: 1Gi}
+  # Dev limits: 1 CPU / 1Gi instead of 500m / 512-768Mi from values.yaml.
+  # With 500m the code servers start slowly and the daemon is throttled.
+  userCode:
+    resources:
+      requests: {cpu: 100m, memory: 256Mi}
+      limits: {cpu: "1", memory: 1Gi}
+  webserver:
+    resources:
+      requests: {cpu: 100m, memory: 256Mi}
+      limits: {cpu: "1", memory: 1Gi}
+  daemon:
+    resources:
+      requests: {cpu: 100m, memory: 256Mi}
       limits: {cpu: "1", memory: 1Gi}
 
 dbt:

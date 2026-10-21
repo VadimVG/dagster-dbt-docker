@@ -7,6 +7,9 @@ externalSecrets:
       key: dagster-dbt/postgres-dagster
     - name: dwh-credentials
       key: dagster-dbt/postgres-dwh
+    # Keys of the S3 user dagster-dbt; the secret belongs to the storage project ../obj-storage-seaweedfs
+    - name: s3-credentials
+      key: obj-storage-seaweedfs/s3-dagster-dbt
 
 postgres:
   image: postgres:17
@@ -23,12 +26,28 @@ postgres:
 dagster:
   image: dagster-user-code:v1.0.0
   serviceAccountName: dagster
-  # One gRPC server (Deployment + Service) per code location
+  # One gRPC server (Deployment + Service) per code location, keyed by the location name.
+  # A map, not a list: values-dev.yaml can override one field of one location.
+  #   module        Python module with the definitions (required)
+  #   image         image of the code server and its run pods (default: dagster.image)
+  #   envSecrets    Secrets for the code server and the run pods, besides the global ones
+  #   env           plain env vars for the code server and the run pods
+  #   runResources  resources of the run pods (default: dagster.runLauncher.resources)
   codeLocations:
-    - name: main
+    main:
       module: dagster_easy.code_locations.main.definitions
-    - name: test-examples
+    test-examples:
       module: dagster_easy.code_locations.test_examples.definitions
+    ai-video:
+      module: dagster_easy.code_locations.ai_video.definitions
+      image: ai-video:v1.0.0
+      envSecrets: [s3-credentials]
+      env:
+        AWS_ENDPOINT_URL_S3: http://object-storage:8333
+        AWS_DEFAULT_REGION: us-east-1
+      runResources:
+        requests: {cpu: 500m, memory: 1Gi}
+        limits: {cpu: "2", memory: 2Gi}
   runLauncher:
     ttlSecondsAfterFinished: 30
     resources:
@@ -40,6 +59,12 @@ dagster:
   dwh:
     externalName: postgres-dwh-postgres-1
     host: dwh-postgres
+  objectStorage:
+    # Service name in the cluster; it does not depend on the storage behind it
+    host: object-storage
+    # Docker container of ../obj-storage-seaweedfs in data-platform-net.
+    # Pods use the endpoint http://object-storage:8333 (env AWS_ENDPOINT_URL_S3 of a code location)
+    externalName: obj-storage-seaweedfs-seaweedfs-1
   userCode:
     resources:
       requests: {cpu: 100m, memory: 256Mi}
