@@ -5,10 +5,6 @@ from dagster_easy.code_locations.ai_video.jobs import (
     s3_check,
 )
 
-
-import warnings
-warnings.filterwarnings("ignore", category=dg.ExperimentalWarning)
-
 defs = dg.Definitions(
     assets=dg.load_assets_from_modules([
         s3_check,

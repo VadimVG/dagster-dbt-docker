@@ -1,4 +1,4 @@
-FROM python:3.11
+FROM python:3.13-slim
 
 
 ENV DAGSTER_HOME=/opt/dagster/app/dagster_home/

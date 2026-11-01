@@ -1,5 +1,5 @@
-dagster == 1.9.8
-dagster-postgres == 0.25.8
-dagster-k8s == 0.25.8
-dagster-aws == 0.25.8
+dagster == 1.13.28
+dagster-postgres == 0.29.28
+dagster-k8s == 0.29.28
+dagster-aws == 0.29.28
 SQLAlchemy == 2.0.37

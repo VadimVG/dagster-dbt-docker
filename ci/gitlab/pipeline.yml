@@ -13,7 +13,7 @@ stages:
   - scan
 
 variables:
-  PYTHON_IMAGE: python:3.11          # same as in ci/docker/Dockerfile
+  PYTHON_IMAGE: python:3.13-slim     # same as in ci/docker/Dockerfile
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"  # GitLab caches only paths inside the project
   CHART: ci/k8s/dagster-dbt-chart
 
