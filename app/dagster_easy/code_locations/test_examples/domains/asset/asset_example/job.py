@@ -39,9 +39,7 @@ def api_data(context: dg.AssetExecutionContext) -> pd.DataFrame:
 )
 def modify_api_data(context: dg.AssetExecutionContext, api_data: pd.DataFrame) -> pd.DataFrame:
     df = api_data
-    df["c"] = None
-    for i in range(len(df)):
-        df["c"][i] = i+1
+    df["c"] = range(1, len(df) + 1)
     time.sleep(5)
     context.log.info(df)
     return df

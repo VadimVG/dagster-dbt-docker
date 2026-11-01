@@ -1,9 +1,1 @@
-from dagster_easy.code_locations.main.repo_defs.healthcheck import healthcheck
-
-healthcheck = healthcheck
-
-
-
-
-
-
+from dagster_easy.code_locations.main.domains.healthcheck.definitions import healthcheck
