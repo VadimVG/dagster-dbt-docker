@@ -9,7 +9,7 @@ from dagster_easy.code_locations.main.domains.healthcheck.verify_database_availa
 healthcheck = dg.create_repository_using_definitions_args(
     name="healthcheck",
     assets=dg.load_assets_from_modules([verify_database_availability]),
-    jobs=[verify_database_availability.verify_database_availability_job],
+    jobs=[verify_database_availability.verify_database_availability],
     schedules=[],
     sensors=[],
     executor=get_executor(),

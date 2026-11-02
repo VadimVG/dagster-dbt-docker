@@ -49,7 +49,7 @@ def refresh_dbt_models(context: dg.OpExecutionContext, dbt: DbtCliResource, star
         All operation dependencies are specified when creating the job.
     """
 )
-def op_example_job():
+def op_example():
     res = get_important_data()
     df = create_df(json = res)
     load_df_to_db(df=df)

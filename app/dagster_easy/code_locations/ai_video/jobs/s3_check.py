@@ -17,7 +17,7 @@ BUCKET = "ai-video"
     },
     group_name="healthchecks",
 )
-def s3_check(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
+def s3_check_access(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
     # ffmpeg exists only in the ai-video image, so this shows which image the run pod uses
     context.log.info(f"ffmpeg: {shutil.which('ffmpeg')}")
     context.log.info(f"S3 endpoint: {os.getenv('AWS_ENDPOINT_URL_S3')}")
@@ -30,8 +30,8 @@ def s3_check(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
     return dg.MaterializeResult(metadata={"objects": len(keys)})
 
 
-s3_check_job = dg.define_asset_job(
-    name="s3_check_job",
+s3_check = dg.define_asset_job(
+    name="s3_check",
     description="Job to test the S3 access of the ai-video code location.",
-    selection=[s3_check],
+    selection=[s3_check_access],
 )

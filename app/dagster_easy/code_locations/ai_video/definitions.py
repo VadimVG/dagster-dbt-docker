@@ -11,7 +11,7 @@ defs = dg.Definitions(
     ]),
 
     jobs=[
-        s3_check.s3_check_job,
+        s3_check.s3_check,
     ],
 
     schedules=[

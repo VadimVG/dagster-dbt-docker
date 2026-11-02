@@ -13,8 +13,8 @@ from dagster_easy.code_locations.test_examples.domains.op.op_example import (
 op = dg.create_repository_using_definitions_args(
     name="op",
     jobs=[
-        op_example.op_example_job,
-        dynamic_output_op_example.dynamic_output_op_example_job,
+        op_example.op_example,
+        dynamic_output_op_example.dynamic_output_op_example,
     ],
     schedules=[],
     sensors=[],

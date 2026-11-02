@@ -33,8 +33,8 @@ def ready_schemas(context: dg.AssetExecutionContext) -> None:
     pg_conn.execute_query(query)
 
 
-verify_database_availability_job = dg.define_asset_job(
-    name="verify_database_availability_job",
+verify_database_availability = dg.define_asset_job(
+    name="verify_database_availability",
     description = "Job to test the functionality of the analytical database.",
     selection=[test_db_connection, ready_schemas],
 )

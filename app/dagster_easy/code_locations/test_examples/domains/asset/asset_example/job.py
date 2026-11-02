@@ -84,8 +84,8 @@ def some_dbt_models(context: dg.AssetExecutionContext, dbt: DbtCliResource):
     return execute_dbt_and_cleanup(context=context, dbt=dbt, command=command)
 
 
-asset_example_job = dg.define_asset_job(
-    name="asset_example_job",
+asset_example = dg.define_asset_job(
+    name="asset_example",
     description = """ 
         An example of creating a job from assets.\n
         In this case, the entire module with assets is imported using the load_assets_from_modules method.\n

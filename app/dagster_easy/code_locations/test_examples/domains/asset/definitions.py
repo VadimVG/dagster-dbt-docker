@@ -10,7 +10,7 @@ from dagster_easy.code_locations.test_examples.domains.asset.asset_example impor
 asset = dg.create_repository_using_definitions_args(
     name="asset",
     assets=dg.load_assets_from_modules([asset_example]),
-    jobs=[asset_example.asset_example_job],
+    jobs=[asset_example.asset_example],
     schedules=[],
     sensors=[],
     resources={"dbt": dbt_resource},
