@@ -15,6 +15,8 @@ class DagsterAssetKind(StrEnum):
     PYTHON = "python"
     DBT = "dbt"
     PANDAS = "pandas"
+    DLT = "dlt"
+    POLARS = "polars"
     MSSQL = "mssql"
     SSAS = "ssas"
 
@@ -27,7 +29,7 @@ class DagsterAssetRefreshConfig(dg.Config):
         DEEP_INC = "deep_inc" 
         FULL = "full"
 
-    type: RefreshType
+    type: RefreshType = RefreshType.INC
 
 
 class DagsterBuildType(StrEnum):

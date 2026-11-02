@@ -104,6 +104,11 @@ event_log_storage:
       port: 5432
 
 
+python_logs:
+  managed_python_loggers:
+    - dagster_easy
+  python_log_level: INFO
+
 telemetry:
   enabled: false
 
