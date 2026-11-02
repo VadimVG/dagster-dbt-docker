@@ -1,6 +1,12 @@
 externalSecrets:
   refreshInterval: 1m
 
+# Dev limit: 1 CPU instead of 500m; with 500m pg_isready can miss its timeout under load.
+postgres:
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {cpu: "1", memory: 512Mi}
+
 dagster:
   image: dagster-user-code:latest
   codeLocations:
